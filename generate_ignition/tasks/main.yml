@@ -1,0 +1,476 @@
+---
+# tasks file for generate_ignition
+
+- name: Remove existing ignition configs
+  file:
+    path: "{{ ignition_configs }}"
+    state: absent
+  tags:
+    - manifests
+    - install-config
+
+- name: Create ignition configs directory
+  file:
+    path: "{{ ignition_configs }}"
+    state: directory
+    mode: '0755'
+  tags:
+    - manifests
+    - install-config
+
+- name: Create path for SSH Keys
+  file:
+    path: "{{ ansible_env.HOME }}/.ssh"
+    state: directory
+    mode: 0700
+  tags:
+    - manifests
+    - install-config
+
+- name: Generate SSH keypair for cluster nodes
+  openssh_keypair:
+   path: "{{ ssh_key_file }}"
+   size: 4096
+   state: present
+  tags:
+    - manifests
+    - install-config
+
+- name: Fetch public key
+  slurp:
+    src: '{{ ssh_key_file }}.pub'
+  register: slurped_key_b64
+  tags:
+    - manifests
+    - install-config
+
+# TODO: This tasks doesn't work very well
+#- name: Configure SSH client for cluster node access
+#  lineinfile:
+#    path: "{{ ansible_env.HOME }}/.ssh/config"
+#    line: "{{ item.line }}"
+#    state: present
+#    backup: yes
+#    create: yes
+#    mode: 0600
+#  with_items:
+#    - { line: "Host *" }
+#    - { line: "    HostName %h.{{ ocp_cluster_name }}.{{ ocp_base_domain }}" }
+#    - { line: "    User core" }
+#    - { line: "    IdentityFile {{ ansible_env.HOME }}/.ssh/{{ ocp_cluster_name }}_rsa" }
+#  tags:
+#    - manifests
+#    - install-config
+
+- name: Fetch pull secret
+  slurp:
+    src: "{{ pull_secret }}"
+  register: slurped_pull_secret_b64
+  tags:
+    - manifests
+    - install-config
+
+- name: Slurp Mirror Registry Certificate Bundle
+  slurp:
+    src: "{{ certificate_bundle }}"
+  register: slurped_registry_ca_bundle_b64
+  when: ( private_registry | bool )
+  tags:
+    - manifests
+    - install-config
+
+- name: Create directory for vCenter Root Certificates
+  file:
+    path: '/tmp/vcenter'
+    state: directory
+  when:
+    - (platform is match("vmware"))
+  tags:
+    - manifests
+    - install-config
+
+- name: Download vCenter Root Certificates
+  unarchive:
+    src: 'https://{{ vcenter_hostname }}:{{ vcenter_port }}/certs/download.zip'
+    dest: /tmp/vcenter
+    remote_src: true
+    validate_certs: false
+  when:
+    - (platform is match("vmware"))
+  tags:
+    - manifests
+    - install-config
+
+- name: Slurp vCenter Root Certificates
+  slurp:
+    #src: "{{ lookup('fileglob', '/tmp/vcenter/certs/lin/*.0') }}"
+    src: '{{ item }}'
+  with_fileglob:
+    - '/tmp/vcenter/certs/lin/*.0'
+  register: slurped_vcenter_ca_bundle_b64
+  when:
+    - (platform is match("vmware"))
+  tags:
+    - manifests 
+    - install-config
+
+- name: Copy template install-config.yaml
+  template:
+    src: install-config.yaml.j2
+    dest: "{{ ignition_configs }}/install-config.yaml"
+    mode: 0664
+  tags:
+    - manifests
+    - install-config
+
+- name: Ensure proper spacing of additionalTrustBundle
+  shell: awk 'BEGIN{c=0}  /BEGIN CERTIFICATE/{c=1}  {if (c==1) print " ",$0}  {if (c==0) print $0}  /END CERTIFICATE/{c=0}' '{{ ignition_configs }}/install-config.yaml'
+  register: install_config_spaced
+  tags:
+    - manifests
+    - install-config
+
+- name: Replace install-config with correctly spaced install-config
+  copy:
+    content: "{{ install_config_spaced.stdout }}"
+    dest: '{{ ignition_configs }}/install-config.yaml'
+    force: true
+
+- name: Remove existing install-config.yaml save
+  file:
+    path: '{{ mirror_base }}/{{ ocp_cluster_name }}-install-config.yaml'
+    state: absent
+
+- name: Save install-config.yaml
+  copy:
+    src: "{{ ignition_configs }}/install-config.yaml"
+    dest: '{{ mirror_base }}/{{ ocp_cluster_name }}-install-config.yaml'
+    remote_src: true
+  tags:
+    - manifests
+    - install-config
+
+- name: Create manifests
+  shell: "{{ openshift_install }} create manifests --dir={{ ignition_configs }}"
+  tags:
+    - manifests
+
+- name: Set masters to unschedulable
+  replace:
+    path: "{{ ignition_configs }}/manifests/cluster-scheduler-02-config.yml"
+    regexp: 'mastersSchedulable: true'
+    replace: 'mastersSchedulable: false'
+  tags:
+    - manifests
+
+- name: Set cluster upgrade channel
+  replace:
+    path: "{{ ignition_configs }}/manifests/cvo-overrides.yaml"
+    regexp: 'channel:.*'
+    replace: 'channel: {{ cluster_channel }}'
+  tags:
+    - manifests
+
+# Prevent the cluster from trying to reach the Cincinnati for update graphs
+- name: Set dummy Cincinnati server
+  replace:
+    path: "{{ ignition_configs }}/manifests/cvo-overrides.yaml"
+    regexp: 'upstream:.*'
+    replace: 'upstream: http://localhost:8080/graph'
+#  when: ( air_gapped | bool )
+  tags:
+    - manifests
+
+- name: Add vCenter port to global cloud provider config
+  lineinfile:
+    path: "{{ ignition_configs }}/manifests/cloud-provider-config.yaml"
+    insertafter: '\[Global\]'
+    line: '    port = "{{ vcenter_port }}"'
+  when:
+    - (platform is match("vmware"))
+  tags:
+    - manifests
+
+- name: Add vCenter port to VirtualCenter cloud provider config
+  lineinfile:
+    path: "{{ ignition_configs }}/manifests/cloud-provider-config.yaml"
+    insertafter: '\[VirtualCenter.*\]'
+    line: '    report = "{{ vcenter_port }}"'
+  when:
+    - (platform is match("vmware"))
+  tags:
+    - manifests
+
+- name: Disable SSL for vCenter API endpoint
+  lineinfile:
+    path: "{{ ignition_configs }}/manifests/cloud-provider-config.yaml"
+    regexp: 'insecure-flag = "1"'
+    line: '    insecure-flag = "true"'
+  when:
+    - ((platform is match("vmware")) and (not vmware_ssl_enabled | bool))
+  tags:
+    - manifests
+
+- name: Fix line due to ansible bug (vmware)
+  lineinfile:
+    path: "{{ ignition_configs }}/manifests/cloud-provider-config.yaml"
+    regexp: 'report = \"{{ vcenter_port }}\"'
+    line: '    port = "{{ vcenter_port }}"'
+  when:
+    - (platform is match("vmware"))
+  tags:
+    - manifests
+
+- name: Remove default Ingress Controller config
+  file:
+    path: "{{ ignition_configs }}/manifests/cluster-ingress-default-ingresscontroller.yaml"
+    state: absent
+
+- name: Configure Ingress Controller for HostNetwork
+  template:
+    src: cluster-ingress-default-ingresscontroller.yaml.j2
+    dest: "{{ ignition_configs }}/manifests/cluster-ingress-default-ingresscontroller.yaml"
+    mode: 0644
+  tags:
+    - manifests
+
+- name: Set access key fact
+  set_fact:
+    aws_access_key_id: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+  when:
+    - (platform is match("aws"))
+
+- name: Set secret access key fact
+  set_fact:
+    aws_secret_access_key_id: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
+  when:
+    - (platform is match("aws"))
+
+- name: Set session token fact
+  set_fact:
+    aws_session_token: "{{ lookup('env', 'AWS_SESSION_TOKEN') }}"
+  when:
+    - (platform is match("aws"))
+
+- name: Remove existing cloud credentials config
+  file:
+    path: "{{ ignition_configs }}/openshift/99_cloud-creds-secret.yaml"
+    state: absent
+
+- name: Add STS AWS API cloud credentials config
+  template:
+    src: 99_cloud-creds-secret.yaml.j2
+    dest: "{{ ignition_configs }}/openshift/99_cloud-creds-secret.yaml"
+    mode: 0644
+  tags:
+    - manifests
+
+#- name: Remove DNS operator config
+#  file:
+#    path: "{{ ignition_configs }}/manifests/cluster-dns-02-config.yml"
+#    state: absent
+
+#- name: Add custom DNS operator config
+#  template:
+#    src: cluster-dns-02-config.yml.j2
+#    dest: "{{ ignition_configs }}/manifests/cluster-dns-02-config.yml"
+#    mode: 0644
+#  tags:
+#    - manifests
+
+#- name: Customize MTU and vxlanPort
+#  template:
+#    src: cluster-network-03-config.yml.j2
+#    dest: "{{ ignition_configs }}/manifests/cluster-network-03-config.yml"
+#    mode: 0644
+#  tags:
+#    - manifests
+
+#- name: Add kernel args for master nodes
+#  template:
+#    src: 99-openshift-machineconfig-master-kargs.yaml.j2
+#    dest: "{{ ignition_configs }}/openshift/99-openshift-machineconfig-master-kargs.yaml"
+#    mode: 0644
+#  tags:
+#    - manifests
+
+#- name: Add kernel args for worker nodes
+#  template:
+#    src: 99-openshift-machineconfig-worker-kargs.yaml.j2
+#    dest: "{{ ignition_configs }}/openshift/99-openshift-machineconfig-worker-kargs.yaml"
+#    mode: 0644
+#  tags:
+#    - manifests
+
+- name: Add Combine Metadata interceptor for master nodes
+  template:
+    src: c2s-instance-metadata-machineconfig.yaml.j2
+    dest: "{{ ignition_configs }}/manifests/c2s-instance-metadata-master-machineconfig.yaml"
+    mode: 0644
+  vars:
+    node_role: 'master'
+  when: ( combine | bool )
+  tags:
+    - manifests
+
+- name: Add Combine Metadata interceptor for worker nodes
+  template:
+    src: c2s-instance-metadata-machineconfig.yaml.j2
+    dest: "{{ ignition_configs }}/manifests/c2s-instance-metadata-worker-machineconfig.yaml"
+    mode: 0644
+  vars:
+    node_role: 'worker'
+  when: ( combine | bool )
+  tags:
+    - manifests
+
+- name: Slurp json state
+  shell: grep -A 2 'ClusterID' {{ ignition_configs }}/.openshift_install_state.json | grep InfraID | awk '{print $2}' | tr -d \"
+  register: cluster_state
+
+- name: Set cluster infra name
+  set_fact:
+    random_infra_id: '{{ cluster_state.stdout }}'
+
+- name: Show infra name
+  debug:
+    var: random_infra_id
+
+- name: Change random infrastructure name to configured name
+  shell: sed -i 's|{{ random_infra_id }}|{{ infrastructure_id }}|g' '{{ item }}'
+  with_fileglob:
+    - '{{ ignition_configs }}/manifests/*.yaml'
+    - '{{ ignition_configs }}/openshift/*.yaml'
+    - '{{ ignition_configs }}/.openshift*'
+
+- name: Create ignition configs
+  shell: "{{ openshift_install }} create ignition-configs --dir={{ ignition_configs }}"
+  tags:
+    - ignition
+
+# TODO: This task is broken and only needed in rare cases anyway
+#- name: Patch existing igntion systemd section
+#  ignition_systemd_patch:
+#    src: '{{ item }}'
+#    patch: "{{ role_path }}/files/nm-patch.json"
+#    backup: false
+#  with_fileglob:
+#    - '{{ ignition_configs }}/*.ign'
+#  tags:
+#    - ignition
+
+#- name: Cleanup existing fakeroots
+#  file:
+#    path: '{{ fake_root_base }}'
+#    state: absent
+
+#- name: Build fakeroots directory structure for static networking config
+#  file:
+#    path: '{{ fake_root_base }}/{{ item.name }}/etc/sysconfig/network-scripts'
+#    state: directory
+#  with_items:
+#    - '{{ openshift_bootstrap }}'
+#    - '{{ openshift_masters }}'
+#    - '{{ openshift_workers }}'
+
+#- name: Create static network configs
+#  template:
+#    src: 'ifcfg.j2'
+#    dest: '{{ fake_root_base }}/{{ item.name }}/etc/sysconfig/network-scripts/ifcfg-{{ item.device }}'
+#    mode: 0644
+#  when:
+#    - (network_mode is match("static"))
+#  with_items:
+#    - '{{ openshift_bootstrap }}'
+#    - '{{ openshift_masters }}'
+#    - '{{ openshift_workers }}'
+
+#- name: Build fakeroots directory structure for module blacklist
+#  file:
+#    path: '{{ fake_root_base }}/{{ item.name }}/etc/modprobe.d'
+#    state: directory
+#  with_items:
+#    - '{{ openshift_bootstrap }}'
+#    - '{{ openshift_masters }}'
+#    - '{{ openshift_workers }}'
+
+#- name: Create kernel module blacklist file
+#  template:
+#    src: 'ocp-ign-blacklist.conf.j2'
+#    dest: '{{ fake_root_base }}/{{ item.name }}/etc/modprobe.d/ocp-ign-blacklist.conf'
+#    mode: 0644
+#  with_items:
+#    - '{{ openshift_bootstrap }}'
+#    - '{{ openshift_masters }}'
+#    - '{{ openshift_workers }}'
+
+#- name: Set pip args
+#  set_fact:
+#    pip_args: '{{ pip_args }} --user'
+
+#- name: check for filetranspiler
+#  stat:
+#    path: '{{ filetranspiler }}'
+#  register: filetranspiler_stat
+
+#- name: fail if filetranspiler not present
+#  fail:
+#    msg: "{{ filetranspiler }} not found. Make sure to install it"
+#  when: ( not filetranspiler_stat.stat.exists | bool )
+
+#- name: Install required pip modules for filetranspiler
+#  pip:
+#    name: "{{ filetranspiler_pip_requirements }}"
+#    state: present
+#    executable: "{{ pip_cmd }}"
+#    extra_args: '{{ pip_args }}'
+
+#- name: Install required RPMs for filetranspiler (RHEL 7)
+#  become: true
+#  vars:
+#    ansible_python_interpreter: '/usr/bin/python2'
+#  package:
+#    name: '{{ filetranspiler_rpm_requirements }}'
+#    state: present
+#  when: >
+#    (ansible_distribution == "RHEL" and
+#    ansible_distribution_major_version < '8') 
+
+#- name: Install required RPMs for filetranspiler (RHEL 8)
+#  become: true
+#  vars:
+#    ansible_python_interpreter: '/usr/bin/python2'
+#  package:
+#    name: '{{ filetranspiler_rpm_requirements }}'
+#    state: present
+#  when: >
+#    (ansible_distribution == "RHEL" and
+#    ansible_distribution_major_version >= '8')
+
+#- name: Customize ignition
+#  shell:
+#    cmd: |
+#
+#      {{filetranspiler}} -i {{ ignition_configs }}/{{ item.type }}.ign -f {{ fake_root_base }}/{{ item.name }} --format json -o {{ ignition_configs }}/{{ item.name }}.ign
+#
+#  with_items:
+#    - '{{ openshift_bootstrap }}'
+#    - '{{ openshift_masters }}'
+#    - '{{ openshift_workers }}'
+
+- name: Create kube config location
+  file:
+    path: "{{ kubeconfig | dirname }}"
+    state: directory
+    mode: '0755'
+
+- name: Remove existing kube config
+  file:
+    path: "{{ kubeconfig }}"
+    state: absent
+
+- name: Set kube config
+  copy:
+    src: "{{ ignition_configs }}/auth/kubeconfig"
+    dest: "{{ kubeconfig }}"
+    remote_src: true

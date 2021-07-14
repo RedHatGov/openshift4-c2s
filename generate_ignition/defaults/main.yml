@@ -1,0 +1,77 @@
+---
+# defaults file for generate_ignition
+
+openshift_install: 'openshift-install'
+openshift_client: 'oc'
+kubectl: 'kubectl'
+kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
+
+mirror_base: '/opt/openshift'
+ignition_configs: '{{ mirror_base }}/cluster'
+pull_secret: '{{ mirror_base }}/pull-secret.txt'
+
+master_schedulable: false
+cluster_channel: 'fast'
+
+# Set to true if using a private registry that has custom SSL certificates
+private_registry: false
+
+fips: true
+ssh_public_key_file: '/{{ ansible_env.HOME }}.ssh/id_ed25519.pub'
+
+ocp_base_domain: 'example.com'
+ocp_cluster_name: 'caas'
+
+master_count: 3
+worker_count: 3
+
+air_gapped: true
+
+mirror_registry: 'localhost'
+mirror_registry_port: 5000
+mirror_transport: 'https'
+
+fips_enabled: false
+
+# Certificate bundle that will be added to the install-config.yaml
+# This generally includes a certificate for the disconnected docker registry
+certificate_bundle: '/etc/pki/tls/certs/registry.crt'
+
+# none, vmware, aws, azure, gcp
+platform: none
+
+cluster_network_cidr: '10.128.0.0/14'
+cluster_network_prefix: 23
+service_network_cidr: '172.30.0.0/16'
+
+#mtu: 1450
+#vxlanPort: 4789
+
+network_policy: 'NetworkPolicy'
+
+master_kargs: ''
+worker_kargs: ''
+
+httpd_document_root: '/var/www/html'
+
+filetranspiler: '/usr/local/bin/filetranspiler'
+
+fake_root_base: '/tmp/fakeroots'
+
+pip_cmd: 'pip3'
+pip_args: ''
+
+# List of modules to blacklist from the kernel
+modules_blacklist:
+  - 'mlx5_core'
+  - 'mlx5_ib'
+  - 'mlxfw'
+  - 'ib_uverbs'
+  - 'ib_core'
+
+
+filetranspiler_pip_requirements:
+  - 'file-magic'
+filetranspiler_rpm_requirements:
+  - 'python3-magic'
+

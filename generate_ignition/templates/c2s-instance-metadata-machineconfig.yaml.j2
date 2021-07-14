@@ -1,0 +1,42 @@
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: {{ node_role }}
+  name: c2s-instance-metadata-{{ node_role }}
+spec:
+  config:
+    ignition:
+      version: 3.1.0
+    systemd:
+      units:
+      - name: c2s-instance-metadata-setup.service
+        enabled: true
+        contents: |
+          [Unit]
+          Description=Setup for C2S Instance Metadata Emulator
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=true
+          ExecStart=/usr/bin/sh -c 'if ! id metadata &>/dev/null; then useradd -p "*" -U -m metadata -G sudo; fi; mkdir -p /var/home/metadata/.docker; cp /var/lib/kubelet/config.json /var/home/metadata/.docker/; chown -R metadata:metadata /var/home/metadata/.docker'
+          ExecStart=iptables -t nat -I OUTPUT -p tcp -m owner ! --uid-owner metadata --dst 169.254.169.254 --dport 80 -j REDIRECT --to-ports 4000
+
+          [Install]
+          WantedBy=multi-user.target
+
+      - name: c2s-instance-metadata.service
+        enabled: true
+        contents: |
+          [Unit]
+          Description=C2S Instance Metadata Emulator
+          Wants=c2s-instance-metadata-setup.service
+          After=c2s-instance-metadata-setup.service
+
+          [Service]
+          User=metadata
+          ExecStart=podman run --userns keep-id --net host {{ mirror_registry }}:{{ mirror_registry_port }}/staebler/c2s-instance-metadata:latest
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target

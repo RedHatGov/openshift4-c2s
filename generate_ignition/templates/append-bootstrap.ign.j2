@@ -1,0 +1,35 @@
+{
+
+  "ignition": {
+
+    "config": {
+
+      "append": [
+
+        {
+
+          "source": "{{ openshift_bootstrap[0].ignserver }}/{{ openshift_bootstrap[0].ign_path }}",
+
+          "verification": {}
+
+        }
+
+      ]
+
+    },
+
+    "timeouts": {},
+
+    "version": "{{ ign_version[ ocp_ver[:3] ] }}"
+
+  },
+
+  "networkd": {},
+
+  "passwd": {},
+
+  "storage": {},
+
+  "systemd": {}
+
+}

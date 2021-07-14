@@ -1,0 +1,79 @@
+---
+apiVersion: v1
+baseDomain: {{ ocp_base_domain }}
+compute:
+- hyperthreading: Enabled
+  name: worker
+  replicas: {{ worker_count }}
+controlPlane:
+  hyperthreading: Enabled
+  name: master
+  replicas: {{ master_count }}
+metadata:
+  name: {{ ocp_cluster_name }}
+networking:
+  clusterNetwork:
+  - cidr: {{ cluster_network_cidr }}
+    hostPrefix: {{ cluster_network_prefix }}
+  networkType: {{ ocp_sdn }}
+  serviceNetwork:
+  - {{ service_network_cidr }}
+platform:
+{% if platform == 'vmware' %}
+  vsphere:
+    vcenter: {{ vcenter_hostname }}
+    username: {{ vcenter_username }}
+    password: {{ vcenter_password }}
+    datacenter: {{ datacenter_name }}
+    defaultDatastore: {{ datastore_name }}
+{% elif platform == 'aws' %}
+  aws:
+    region: '{{ aws_region }}'
+    amiID: {{ rhcos_ami[ rhcos_ver ] }}
+    serviceEndpoints:
+      - name: ec2
+        url: 'https://ec2.us-iso-east-1.c2s.ic.gov'
+      - name: s3
+        url: 'https://s3.us-iso-east-1.c2s.ic.gov'
+      - name: elb
+        url: 'https://elasticloadbalancing.us-iso-east-1.c2s.ic.gov'
+      - name: iam
+        url: 'https://iam.us-iso-east-1.c2s.ic.gov'
+      - name: route53
+        url: 'https://route53.us-iso-east-1.c2s.ic.gov'
+{% elif platform == 'gcp' %}
+  none: {}
+{% elif platform == 'bare_metal' %}
+  none: {}
+{% else %}
+  none: {}
+{% endif %}
+pullSecret: '{{ slurped_pull_secret_b64.content | b64decode | trim }}'
+sshKey: '{{ slurped_key_b64.content | b64decode | trim }}'
+fips: {{ fips_enabled | bool | lower }}
+publish: {{ ocp_cluster_publish }}
+{% if private_registry or platform == 'vmware' %}
+additionalTrustBundle: |
+{% if private_registry %}
+{{ slurped_registry_ca_bundle_b64.content | b64decode | trim }}
+{% endif %}
+{% if platform == 'vmware' %}
+{% if slurped_vcenter_ca_bundle_b64 is defined %}
+{% for cert in slurped_vcenter_ca_bundle_b64.results %}
+{{ cert.content | b64decode | trim }}
+{% endfor %}
+{% endif %}
+{% endif %}
+{% endif %}
+{% if private_registry %}
+imageContentSources:
+- mirrors:
+  - {{ mirror_registry }}:{{ mirror_registry_port }}/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-release
+- mirrors:
+  - {{ mirror_registry }}:{{ mirror_registry_port }}/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+- mirrors:
+  - {{ mirror_registry }}:{{ mirror_registry_port }}/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-release-nightly
+{% endif %}
