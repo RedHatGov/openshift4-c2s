@@ -1,26 +1,28 @@
 ---
 # defaults file for generate_ignition
 
-openshift_install: 'openshift-install'
-openshift_client: 'oc'
-kubectl: 'kubectl'
+###################################################################
+# Path to binaries
+###################################################################
+openshift_install: '/usr/local/bin/openshift-install-4.7.0'
+openshift_client: '/usr/local/bin/oc-4.7.0'
+kubectl: '/usr/local/bin/kubectl-4.7.0'
 kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
+filetranspile: '/usr/local/bin/filetranspiler'
+fakeroots: 'fakeroots'
 
 mirror_base: '/opt/openshift'
 ignition_configs: '{{ mirror_base }}/cluster'
 pull_secret: '{{ mirror_base }}/pull-secret.txt'
 
 master_schedulable: false
-cluster_channel: 'fast'
+cluster_channel: 'stable'
 
 # Set to true if using a private registry that has custom SSL certificates
-private_registry: false
+private_registry: true
 
-fips: true
+fips: false
 ssh_public_key_file: '/{{ ansible_env.HOME }}.ssh/id_ed25519.pub'
-
-ocp_base_domain: 'example.com'
-ocp_cluster_name: 'caas'
 
 master_count: 3
 worker_count: 3
@@ -38,19 +40,13 @@ fips_enabled: false
 certificate_bundle: '/etc/pki/tls/certs/registry.crt'
 
 # none, vmware, aws, azure, gcp
-platform: none
+platform: aws
 
 cluster_network_cidr: '10.128.0.0/14'
 cluster_network_prefix: 23
 service_network_cidr: '172.30.0.0/16'
 
-#mtu: 1450
-#vxlanPort: 4789
-
 network_policy: 'NetworkPolicy'
-
-master_kargs: ''
-worker_kargs: ''
 
 httpd_document_root: '/var/www/html'
 
@@ -61,17 +57,129 @@ fake_root_base: '/tmp/fakeroots'
 pip_cmd: 'pip3'
 pip_args: ''
 
-# List of modules to blacklist from the kernel
-modules_blacklist:
-  - 'mlx5_core'
-  - 'mlx5_ib'
-  - 'mlxfw'
-  - 'ib_uverbs'
-  - 'ib_core'
-
-
 filetranspiler_pip_requirements:
   - 'file-magic'
 filetranspiler_rpm_requirements:
   - 'python3-magic'
 
+---
+# Fully air-gap install??
+air_gapped: true
+
+# Supported platforms include
+# vmware, aws, gcp, bare_metal, none
+platform: 'aws'
+
+infrastructure_id: 'abc123'
+
+###############################################
+
+# RedHat CoreOS Version. Might not match OpenShift Version
+# 4.3.8 and 4.4.3 currently available
+rhcos_ver: '4.7.13'
+# OpenShift Version
+# 4.3.21 and 4.4.7 currently available
+ocp_ver: '4.7.18'
+# RHCOS and OpenShift Architecture
+arch: 'x86_64'
+
+ign_version:
+  '4.2': '2.1.0'
+  '4.3': '2.1.0'
+  '4.4': '2.1.0'
+  '4.5': '2.2.0'
+  '4.6': '3.1.0'
+  '4.7': '3.1.0'
+
+kube_ssl_enabled: false
+kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
+
+master_count: 3
+worker_count: 0
+
+fips_enabled: false
+
+ocp_cluster_publish: 'Internal'
+ocp_sdn: 'OpenShiftSDN'
+
+ocp_base_domain: 'example.com'
+ocp_cluster_name: 'caas'
+ocp_cluster_name_verbose: '{{ ocp_cluster_name }}.{{ ocp_base_domain }}'
+
+ssh_key_file: '{{ ansible_env.HOME }}/.ssh/{{ ocp_cluster_name}}_rsa'
+
+# Certificate bundle that will be added to the install-config.yaml
+# This generally includes a certificate for the disconnected docker registry
+certificate_bundle: '/etc/pki/ca-trust/source/anchors/registry.crt'
+
+stage_ignition: true
+###############################################
+
+###############################################################
+# Base directory for all other mirror tasks
+################################################################
+mirror_base: '/opt/openshift'
+mirror_registry: 'registry.caas.cia.ic.gov'
+mirror_registry_port: '5000'
+mirror_transport: 'https'
+ignition_configs: "{{ mirror_base }}/{{ ocp_cluster_name }}"
+# This is the secret that will be uploaded to the mirror server
+# for use in mirroring images
+local_pull_secret: '{{ ansible_env.HOME }}/Downloads/pull-secret.txt'
+# This is the same secret as above but located on the mirror server
+#pull_secret: '/opt/openshift/pull-secret.json'
+pull_secret: '/home/danclark/pull-secret.txt'
+
+docker_registry_hostname: 'localhost'
+
+# static or dhcp network mode for installing the cluster
+network_mode: dhcp
+
+#This needs to be set to the disk where you are installing RHCOS
+disk: 'xvda'
+
+##########################################################################################
+#
+# AWS Variables
+#
+##########################################################################################
+
+# 4.3 March 23, 2020 at 5:28:02 AM UTC-
+#ec2_ami: 'ami-0347efb61e552e57b'
+
+# rhcos-45.82.202008010929-0
+#ec2_ami: 'ami-08f17f5bd2210c9fa'
+
+# 4.6.8
+#ec2_ami: 'ami-01d4ce8cb7734d27b'
+# 4.7.0
+#ec2_ami: 'ami-0ccf438713c096327'
+
+rhcos_ami:
+  '4.6.8': 'ami-01d4ce8cb7734d27b'
+  '4.7.0': 'ami-0ccf438713c096327'
+
+aws_region: 'us-east-1'
+ec2_endpoint: 'https://ec2.us-iso-east-1.c2s.ic.gov'
+s3_endpoint: 'https://s3.us-iso-east-1.c2s.ic.gov'
+route53_endpoint: 'https://route53.us-iso-east-1.c2s.ic.gov'
+elb_endpoint: 'https://elasticloadbalancing.us-iso-east-1.c2s.ic.gov'
+aws_ssl_enabled: false
+
+combine: true
+
+ec2_key_name: 'Combine'
+
+vpc_id: 'vpc-'
+subnet_id: 'subnet-'
+
+openshift_aws:
+  bootstrap:
+    instance_type: 'i3.large'
+    root_vol_size: '50'
+  master:
+    instance_type: 'm5.xlarge'
+    root_vol_size: '50'
+  worker:
+    instance_type: 'm5.2xlarge'
+    root_vol_size: '50'
