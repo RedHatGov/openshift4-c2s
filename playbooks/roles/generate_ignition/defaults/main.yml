@@ -11,8 +11,6 @@ kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
 filetranspile: '/usr/local/bin/filetranspiler'
 fakeroots: 'fakeroots'
 
-mirror_base: '/opt/openshift'
-ignition_configs: '{{ mirror_base }}/cluster'
 pull_secret: '{{ mirror_base }}/pull-secret.txt'
 
 master_schedulable: false
@@ -27,12 +25,6 @@ ssh_public_key_file: '/{{ ansible_env.HOME }}.ssh/id_ed25519.pub'
 master_count: 3
 worker_count: 3
 
-air_gapped: true
-
-mirror_registry: 'localhost'
-mirror_registry_port: 5000
-mirror_transport: 'https'
-
 fips_enabled: false
 
 # Certificate bundle that will be added to the install-config.yaml
@@ -40,7 +32,6 @@ fips_enabled: false
 certificate_bundle: '/etc/pki/tls/certs/registry.crt'
 
 # none, vmware, aws, azure, gcp
-platform: aws
 
 cluster_network_cidr: '10.128.0.0/14'
 cluster_network_prefix: 23
@@ -62,7 +53,6 @@ filetranspiler_pip_requirements:
 filetranspiler_rpm_requirements:
   - 'python3-magic'
 
----
 # Fully air-gap install??
 air_gapped: true
 
@@ -92,12 +82,6 @@ ign_version:
   '4.7': '3.1.0'
 
 kube_ssl_enabled: false
-kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
-
-master_count: 3
-worker_count: 0
-
-fips_enabled: false
 
 ocp_cluster_publish: 'Internal'
 ocp_sdn: 'OpenShiftSDN'
@@ -107,10 +91,6 @@ ocp_cluster_name: 'caas'
 ocp_cluster_name_verbose: '{{ ocp_cluster_name }}.{{ ocp_base_domain }}'
 
 ssh_key_file: '{{ ansible_env.HOME }}/.ssh/{{ ocp_cluster_name}}_rsa'
-
-# Certificate bundle that will be added to the install-config.yaml
-# This generally includes a certificate for the disconnected docker registry
-certificate_bundle: '/etc/pki/ca-trust/source/anchors/registry.crt'
 
 stage_ignition: true
 ###############################################
@@ -127,8 +107,6 @@ ignition_configs: "{{ mirror_base }}/{{ ocp_cluster_name }}"
 # for use in mirroring images
 local_pull_secret: '{{ ansible_env.HOME }}/Downloads/pull-secret.txt'
 # This is the same secret as above but located on the mirror server
-#pull_secret: '/opt/openshift/pull-secret.json'
-pull_secret: '/home/danclark/pull-secret.txt'
 
 docker_registry_hostname: 'localhost'
 
