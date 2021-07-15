@@ -79,41 +79,6 @@
     - manifests
     - install-config
 
-- name: Create directory for vCenter Root Certificates
-  file:
-    path: '/tmp/vcenter'
-    state: directory
-  when:
-    - (platform is match("vmware"))
-  tags:
-    - manifests
-    - install-config
-
-- name: Download vCenter Root Certificates
-  unarchive:
-    src: 'https://{{ vcenter_hostname }}:{{ vcenter_port }}/certs/download.zip'
-    dest: /tmp/vcenter
-    remote_src: true
-    validate_certs: false
-  when:
-    - (platform is match("vmware"))
-  tags:
-    - manifests
-    - install-config
-
-- name: Slurp vCenter Root Certificates
-  slurp:
-    #src: "{{ lookup('fileglob', '/tmp/vcenter/certs/lin/*.0') }}"
-    src: '{{ item }}'
-  with_fileglob:
-    - '/tmp/vcenter/certs/lin/*.0'
-  register: slurped_vcenter_ca_bundle_b64
-  when:
-    - (platform is match("vmware"))
-  tags:
-    - manifests 
-    - install-config
-
 - name: Copy template install-config.yaml
   template:
     src: install-config.yaml.j2
@@ -178,46 +143,6 @@
     regexp: 'upstream:.*'
     replace: 'upstream: http://localhost:8080/graph'
 #  when: ( air_gapped | bool )
-  tags:
-    - manifests
-
-- name: Add vCenter port to global cloud provider config
-  lineinfile:
-    path: "{{ ignition_configs }}/manifests/cloud-provider-config.yaml"
-    insertafter: '\[Global\]'
-    line: '    port = "{{ vcenter_port }}"'
-  when:
-    - (platform is match("vmware"))
-  tags:
-    - manifests
-
-- name: Add vCenter port to VirtualCenter cloud provider config
-  lineinfile:
-    path: "{{ ignition_configs }}/manifests/cloud-provider-config.yaml"
-    insertafter: '\[VirtualCenter.*\]'
-    line: '    report = "{{ vcenter_port }}"'
-  when:
-    - (platform is match("vmware"))
-  tags:
-    - manifests
-
-- name: Disable SSL for vCenter API endpoint
-  lineinfile:
-    path: "{{ ignition_configs }}/manifests/cloud-provider-config.yaml"
-    regexp: 'insecure-flag = "1"'
-    line: '    insecure-flag = "true"'
-  when:
-    - ((platform is match("vmware")) and (not vmware_ssl_enabled | bool))
-  tags:
-    - manifests
-
-- name: Fix line due to ansible bug (vmware)
-  lineinfile:
-    path: "{{ ignition_configs }}/manifests/cloud-provider-config.yaml"
-    regexp: 'report = \"{{ vcenter_port }}\"'
-    line: '    port = "{{ vcenter_port }}"'
-  when:
-    - (platform is match("vmware"))
   tags:
     - manifests
 
