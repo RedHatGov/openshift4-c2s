@@ -1,2 +1,4 @@
 inventory
 ansible.log
+*.swp
+*.mine
