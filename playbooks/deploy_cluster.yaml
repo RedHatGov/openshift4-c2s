@@ -1,0 +1,10 @@
+---
+
+- hosts: helper_node
+  gather_facts: true
+  become: false
+  tasks:
+
+    - name: Deploy OpenShift4 UPI Cluster
+      import_role:
+        name: deploy_cluster
