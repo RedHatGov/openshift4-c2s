@@ -1,0 +1,107 @@
+---
+
+- name: Deploy bootstrap Cloudformation stack
+  amazon.aws.cloudformation:
+    stack_name: openshift4-bootstrap
+    state: present
+    region: "{{ aws_region }}"
+    ec2_url: "{{ cloudformation_endpoint }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    disable_rollback: true
+    create_timeout: 5
+    template: "../cloudformation/c2s/NGA/04_cluster_bootstrap.yaml"
+    template_parameters:
+      ClusterName: "{{ ocp_cluster_name }}"
+      InfrastructureName: "{{ infrastructure_id }}"
+      RhcosAmi: "{{ rhcos_ami[rhcos_ver] }}"
+      AllowedBootstrapCidr: '0.0.0.0/0'
+      PublicSubnet: "{{ subnets[0].id }}"
+      MasterSecurityGroupId: "{{ ec2_sg.master.id }}"
+      VpcId: "{{ vpc_id }}"
+      BootstrapIgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
+      InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
+      InternalServiceTragetGroupArn: "{{ internap_service_target_group_arn }}"
+      BootstrapInstanceProfileName: "{{ ec2_iam_role.bootstrap }}"
+      IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
+  register: bootstrap_stack_outputs
+  tags:
+    - bootstrap
+
+- name: Show bootstrap stack output
+  debug:
+    var: bootstrap_stack_outputs
+  tags:
+    - bootstrap
+
+- name: Add bootstrap node to the api target group
+  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ bootstrap_strap_outputs.stack_outputs.BootstrapPrivateIp }}"}'
+  tags:
+    - bootstrap
+
+- name: Add bootstra node to the service api taget group
+  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ bootstrap_strap_outputs.stack_outputs.BootstrapPrivateIp }}"}'
+  tags:
+    - bootstrap
+
+- name: Deploy control plane Cloudformation stack
+  amazon.aws.cloudformation:
+    stack_name: openshift4-control-plane
+    state: present
+    region: "{{ aws_region }}"
+    ec2_url: "{{ cloudformation_endpoint }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    disable_rollback: true
+    create_timeout: 5
+    template: "../cloudformation/c2s/NGA/"
+    template_parameters:
+      ClusterName: "{{ ocp_cluster_name }}"
+      InfrastructureName: "{{ infrastructure_id }}"
+      RhcosAmi: "{{ rhcos_ami[rhcos_ver] }}"
+      Master0Subnet: "{{ subnets[0].id }}"
+      Master1Subnet: "{{ subnets[1].id }}"
+      Master2Subnet: "{{ subnets[2].id }}"
+      IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
+      InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
+      InternalServiceTargetGropArn: "{{ internap_service_target_group_arn }}"
+      MasterInstanceProfileName: "{{ ec2_iam_role.master }}"
+      IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
+  register: master_stack_outputs
+  tags:
+    - masters
+
+- name: show master stack output
+  debug:
+    var: master_stack_outputs
+  tags:
+    - masters
+
+- name: Add master 0 node to api target group
+  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ master_stack_outputs.stack_outputs.Master0PrivateIp }}"}'
+  tags:
+    - masters
+
+- name: Add master 1 node to api target group
+  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ master_stack_outputs.stack_outputs.Master1PrivateIp }}"}'
+  tags:
+    - masters
+
+- name: Add master 2 node to api target group
+  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ master_stack_outputs.stack_outputs.Master2PrivateIp }}"}'
+  tags:
+    - masters
+
+- name: Add master 0 node to service target group
+  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ master_stack_outputs.stack_outputs.Master0PrivateIp }}"}'
+  tags:
+    - masters
+
+- name: Add master 1 node to service target group
+  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ master_stack_outputs.stack_outputs.Master1PrivateIp }}"}'
+  tags:
+    - masters
+
+- name: Add master 2 node to service target group
+  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ master_stack_outputs.stack_outputs.Master2PrivateIp }}"}'
+  tags:
+    - masters
+

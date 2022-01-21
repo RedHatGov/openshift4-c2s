@@ -5,44 +5,29 @@
   file:
     path: "{{ ignition_configs }}"
     state: absent
-  tags:
-    - manifests
-    - install-config
 
 - name: Create ignition configs directory
   file:
     path: "{{ ignition_configs }}"
     state: directory
     mode: '0755'
-  tags:
-    - manifests
-    - install-config
 
 - name: Create path for SSH Keys
   file:
     path: "{{ ansible_env.HOME }}/.ssh"
     state: directory
     mode: 0700
-  tags:
-    - manifests
-    - install-config
 
 - name: Generate SSH keypair for cluster nodes
   openssh_keypair:
    path: "{{ ssh_key_file }}"
    size: 4096
    state: present
-  tags:
-    - manifests
-    - install-config
 
 - name: Fetch public key
   slurp:
     src: '{{ ssh_key_file }}.pub'
   register: slurped_key_b64
-  tags:
-    - manifests
-    - install-config
 
 # TODO: This tasks doesn't work very well
 #- name: Configure SSH client for cluster node access
@@ -58,42 +43,34 @@
 #    - { line: "    HostName %h.{{ ocp_cluster_name }}.{{ ocp_base_domain }}" }
 #    - { line: "    User core" }
 #    - { line: "    IdentityFile {{ ansible_env.HOME }}/.ssh/{{ ocp_cluster_name }}_rsa" }
-#  tags:
-#    - manifests
-#    - install-config
 
 - name: Fetch pull secret
   slurp:
     src: "{{ pull_secret }}"
   register: slurped_pull_secret_b64
-  tags:
-    - manifests
-    - install-config
 
 - name: Slurp Mirror Registry Certificate Bundle
   slurp:
     src: "{{ certificate_bundle }}"
   register: slurped_registry_ca_bundle_b64
   when: ( private_registry | bool )
-  tags:
-    - manifests
-    - install-config
+
+- name: Slurp private AWS region API CA
+  slurp:
+    src: 'roles/generate_ignition/files/aws_api_ca_bundle.pem'
+  register: slurped_aws_api_ca_bundle_64
+  when:
+    - (platform is match("aws"))
 
 - name: Copy template install-config.yaml
   template:
     src: install-config.yaml.j2
     dest: "{{ ignition_configs }}/install-config.yaml"
     mode: 0664
-  tags:
-    - manifests
-    - install-config
 
 - name: Ensure proper spacing of additionalTrustBundle
   shell: awk 'BEGIN{c=0}  /BEGIN CERTIFICATE/{c=1}  {if (c==1) print " ",$0}  {if (c==0) print $0}  /END CERTIFICATE/{c=0}' '{{ ignition_configs }}/install-config.yaml'
   register: install_config_spaced
-  tags:
-    - manifests
-    - install-config
 
 - name: Replace install-config with correctly spaced install-config
   copy:
@@ -111,30 +88,21 @@
     src: "{{ ignition_configs }}/install-config.yaml"
     dest: '{{ mirror_base }}/{{ ocp_cluster_name }}-install-config.yaml'
     remote_src: true
-  tags:
-    - manifests
-    - install-config
 
 - name: Create manifests
   shell: "{{ openshift_install }} create manifests --dir={{ ignition_configs }}"
-  tags:
-    - manifests
 
 - name: Set masters to unschedulable
   replace:
     path: "{{ ignition_configs }}/manifests/cluster-scheduler-02-config.yml"
     regexp: 'mastersSchedulable: true'
     replace: 'mastersSchedulable: false'
-  tags:
-    - manifests
 
 - name: Set cluster upgrade channel
   replace:
     path: "{{ ignition_configs }}/manifests/cvo-overrides.yaml"
     regexp: 'channel:.*'
     replace: 'channel: {{ cluster_channel }}'
-  tags:
-    - manifests
 
 # Prevent the cluster from trying to reach the Cincinnati for update graphs
 - name: Set dummy Cincinnati server
@@ -143,8 +111,6 @@
     regexp: 'upstream:.*'
     replace: 'upstream: http://localhost:8080/graph'
 #  when: ( air_gapped | bool )
-  tags:
-    - manifests
 
 - name: Remove default Ingress Controller config
   file:
@@ -156,8 +122,6 @@
     src: cluster-ingress-default-ingresscontroller.yaml.j2
     dest: "{{ ignition_configs }}/manifests/cluster-ingress-default-ingresscontroller.yaml"
     mode: 0644
-  tags:
-    - manifests
 
 - name: Set access key fact
   set_fact:
@@ -187,8 +151,6 @@
     src: 99_cloud-creds-secret.yaml.j2
     dest: "{{ ignition_configs }}/openshift/99_cloud-creds-secret.yaml"
     mode: 0644
-  tags:
-    - manifests
 
 #- name: Remove DNS operator config
 #  file:
@@ -200,32 +162,24 @@
 #    src: cluster-dns-02-config.yml.j2
 #    dest: "{{ ignition_configs }}/manifests/cluster-dns-02-config.yml"
 #    mode: 0644
-#  tags:
-#    - manifests
 
 #- name: Customize MTU and vxlanPort
 #  template:
 #    src: cluster-network-03-config.yml.j2
 #    dest: "{{ ignition_configs }}/manifests/cluster-network-03-config.yml"
 #    mode: 0644
-#  tags:
-#    - manifests
 
 #- name: Add kernel args for master nodes
 #  template:
 #    src: 99-openshift-machineconfig-master-kargs.yaml.j2
 #    dest: "{{ ignition_configs }}/openshift/99-openshift-machineconfig-master-kargs.yaml"
 #    mode: 0644
-#  tags:
-#    - manifests
 
 #- name: Add kernel args for worker nodes
 #  template:
 #    src: 99-openshift-machineconfig-worker-kargs.yaml.j2
 #    dest: "{{ ignition_configs }}/openshift/99-openshift-machineconfig-worker-kargs.yaml"
 #    mode: 0644
-#  tags:
-#    - manifests
 
 - name: Add Combine Metadata interceptor for master nodes
   template:
@@ -235,8 +189,6 @@
   vars:
     node_role: 'master'
   when: ( combine | bool )
-  tags:
-    - manifests
 
 - name: Add Combine Metadata interceptor for worker nodes
   template:
@@ -246,8 +198,6 @@
   vars:
     node_role: 'worker'
   when: ( combine | bool )
-  tags:
-    - manifests
 
 - name: Slurp json state
   shell: grep -A 2 'ClusterID' {{ ignition_configs }}/.openshift_install_state.json | grep InfraID | awk '{print $2}' | tr -d \"
@@ -270,8 +220,6 @@
 
 - name: Create ignition configs
   shell: "{{ openshift_install }} create ignition-configs --dir={{ ignition_configs }}"
-  tags:
-    - ignition
 
 # TODO: This task is broken and only needed in rare cases anyway
 #- name: Patch existing igntion systemd section
@@ -281,8 +229,6 @@
 #    backup: false
 #  with_fileglob:
 #    - '{{ ignition_configs }}/*.ign'
-#  tags:
-#    - ignition
 
 #- name: Cleanup existing fakeroots
 #  file:
