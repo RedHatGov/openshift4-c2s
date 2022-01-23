@@ -112,16 +112,20 @@
     replace: 'upstream: http://localhost:8080/graph'
 #  when: ( air_gapped | bool )
 
-- name: Remove default Ingress Controller config
+- name: Remove default cloud provider config
   file:
-    path: "{{ ignition_configs }}/manifests/cluster-ingress-default-ingresscontroller.yaml"
+    path: "{{ ignition_configs }}/manifests/cloud-provider-config.yaml"
     state: absent
+  when:
+    - (platform is match("aws"))
 
-- name: Configure Ingress Controller for HostNetwork
+- name: Copy new cloud provider config
   template:
-    src: cluster-ingress-default-ingresscontroller.yaml.j2
-    dest: "{{ ignition_configs }}/manifests/cluster-ingress-default-ingresscontroller.yaml"
+    src: cloud-provider-config.yaml.j2
+    dest: "{{ ignition_configs }}/manifests/cloud-provider-config.yaml"
     mode: 0644
+  when:
+    - (platform is match("aws"))
 
 - name: Set access key fact
   set_fact:
@@ -143,64 +147,68 @@
 
 - name: Remove existing cloud credentials config
   file:
-    path: "{{ ignition_configs }}/openshift/99_cloud-creds-secret.yaml"
+    path: "{{ ignition_configs }}/openshift/{{ item }}"
     state: absent
+  when:
+    - (platform is match("aws"))
+  with_items:
+    - '99_cloud-creds-secret.yaml'
+    - '99_aws-ebs-csi-driver-operator-secret.yaml'
+    - '99_cloud-credential-operator-iam-ro-secret.yaml'
+    - '99_openshift-image-registry-secret.yaml'
+    - '99_openshift-ingress-secret.yaml'
+    - '99_openshift-machine-api-aws-secret.yaml'
 
 - name: Add STS AWS API cloud credentials config
   template:
-    src: 99_cloud-creds-secret.yaml.j2
-    dest: "{{ ignition_configs }}/openshift/99_cloud-creds-secret.yaml"
+    src: "{{ item }}.j2"
+    dest: "{{ ignition_configs }}/openshift/{{ item }}"
     mode: 0644
+  when:
+    - (platform is match("aws"))
+  with_items:
+    - '99_cloud-creds-secret.yaml'
+    - '99_aws-ebs-csi-driver-operator-secret.yaml'
+    - '99_cloud-credential-operator-iam-ro-secret.yaml'
+    - '99_openshift-image-registry-secret.yaml'
+    - '99_openshift-ingress-secret.yaml'
+    - '99_openshift-machine-api-aws-secret.yaml'
 
-#- name: Remove DNS operator config
-#  file:
-#    path: "{{ ignition_configs }}/manifests/cluster-dns-02-config.yml"
-#    state: absent
+- name: Remove DNS operator config
+  file:
+    path: "{{ ignition_configs }}/manifests/cluster-dns-02-config.yml"
+    state: absent
+  when:
+    - (platform is match("aws") and (not route53_enabled | bool))
 
-#- name: Add custom DNS operator config
-#  template:
-#    src: cluster-dns-02-config.yml.j2
-#    dest: "{{ ignition_configs }}/manifests/cluster-dns-02-config.yml"
-#    mode: 0644
-
-#- name: Customize MTU and vxlanPort
-#  template:
-#    src: cluster-network-03-config.yml.j2
-#    dest: "{{ ignition_configs }}/manifests/cluster-network-03-config.yml"
-#    mode: 0644
-
-#- name: Add kernel args for master nodes
-#  template:
-#    src: 99-openshift-machineconfig-master-kargs.yaml.j2
-#    dest: "{{ ignition_configs }}/openshift/99-openshift-machineconfig-master-kargs.yaml"
-#    mode: 0644
-
-#- name: Add kernel args for worker nodes
-#  template:
-#    src: 99-openshift-machineconfig-worker-kargs.yaml.j2
-#    dest: "{{ ignition_configs }}/openshift/99-openshift-machineconfig-worker-kargs.yaml"
-#    mode: 0644
-
-- name: Add Combine Metadata interceptor for master nodes
+- name: Add custom DNS operator config
   template:
-    src: c2s-instance-metadata-machineconfig.yaml.j2
-    dest: "{{ ignition_configs }}/manifests/c2s-instance-metadata-master-machineconfig.yaml"
+    src: cluster-dns-02-config.yml.j2
+    dest: "{{ ignition_configs }}/manifests/cluster-dns-02-config.yml"
     mode: 0644
-  vars:
-    node_role: 'master'
-  when: ( combine | bool )
+  when:
+    - (platform is match("aws") and (not route53_enabled | bool))
 
-- name: Add Combine Metadata interceptor for worker nodes
-  template:
-    src: c2s-instance-metadata-machineconfig.yaml.j2
-    dest: "{{ ignition_configs }}/manifests/c2s-instance-metadata-worker-machineconfig.yaml"
-    mode: 0644
-  vars:
-    node_role: 'worker'
-  when: ( combine | bool )
+#- name: Add Combine Metadata interceptor for master nodes
+#  template:
+#    src: c2s-instance-metadata-machineconfig.yaml.j2
+#    dest: "{{ ignition_configs }}/manifests/c2s-instance-metadata-master-machineconfig.yaml"
+#    mode: 0644
+#  vars:
+#    node_role: 'master'
+#  when: ( combine | bool )
+
+#- name: Add Combine Metadata interceptor for worker nodes
+#  template:
+#    src: c2s-instance-metadata-machineconfig.yaml.j2
+#    dest: "{{ ignition_configs }}/manifests/c2s-instance-metadata-worker-machineconfig.yaml"
+#    mode: 0644
+#  vars:
+#    node_role: 'worker'
+#  when: ( combine | bool )
 
 - name: Slurp json state
-  shell: grep -A 2 'ClusterID' {{ ignition_configs }}/.openshift_install_state.json | grep InfraID | awk '{print $2}' | tr -d \"
+  shell: grep -A 2 'ClusterID' {{ ignition_configs }}/.openshift_install_state.json | grep InfraID | awk '{print $2}' | tr -d '"' | awk -F\- '{print $NF}'
   register: cluster_state
 
 - name: Set cluster infra name
@@ -212,122 +220,147 @@
     var: random_infra_id
 
 - name: Change random infrastructure name to configured name
-  shell: sed -i 's|{{ random_infra_id }}|{{ infrastructure_id }}|g' '{{ item }}'
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: "{{ random_infra_id }}"
+    replace: "{{ infrastructure_id }}"
   with_fileglob:
-    - '{{ ignition_configs }}/manifests/*.yaml'
-    - '{{ ignition_configs }}/openshift/*.yaml'
+    - '{{ ignition_configs }}/manifests/*.y*ml'
+    - '{{ ignition_configs }}/openshift/*.y*ml'
     - '{{ ignition_configs }}/.openshift*'
+
+- name: Change worker iam profile name
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-worker-profile"
+    replace: "{{ ec2_iam_role.worker }}"
+  with_fileglob:
+    - '{{ ignition_configs }}/manifests/*.y*ml'
+    - '{{ ignition_configs }}/openshift/*.y*ml'
+  when:
+    - ec2_iam_role.worker is defined
+
+- name: Change master iam profile name
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-master-profile"
+    replace: "{{ ec2_iam_role.master }}"
+  with_fileglob:
+    - '{{ ignition_configs }}/manifests/*.y*ml'
+    - '{{ ignition_configs }}/openshift/*.y*ml'
+  when: 
+    - ec2_iam_role.master is defined
+
+- name: Change master security group from the default pattern
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-master-sg"
+    replace: "{{ ec2_sg.master.name }}"
+  with_fileglob:
+    - '{{ ignition_configs }}/manifests/*.y*ml'
+    - '{{ ignition_configs }}/openshift/*.y*ml'
+#  when: 
+#    - ec2_iam_role.worker is defined
+
+- name: Change the worker security group from the default pattern
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-worker-sg"
+    replace: "{{ ec2_sg.worker.name }}"
+  with_fileglob:
+    - '{{ ignition_configs }}/manifests/*.y*ml'
+    - '{{ ignition_configs }}/openshift/*.y*ml'
+#  when: 
+#    - ec2_iam_role.worker is defined
+
+- name: Change master machine set internal LB name
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-int"
+    replace: "{{infrastructure_id}}-int"
+  with_fileglob:
+    - '{{ ignition_configs }}/manifests/*.y*ml'
+    - '{{ ignition_configs }}/openshift/*.y*ml'
+#  when: 
+#    - ec2_iam_role.worker is defined
+
+- name: Change subnet 0 name
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-private-{{subnets[0].zone}}"
+    replace: "{{ subnets[0].name }}"
+  with_fileglob:
+    - '{{ ignition_configs }}/manifests/*.y*ml'
+    - '{{ ignition_configs }}/openshift/*.y*ml'
+#  when: 
+#    - ec2_iam_role.worker is defined
+
+- name: Change subnet 1 name
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-private-{{subnets[1].zone}}"
+    replace: "{{ subnets[1].name }}"
+  with_fileglob:
+    - '{{ ignition_configs }}/manifests/*.y*ml'
+    - '{{ ignition_configs }}/openshift/*.y*ml'
+#  when: 
+#    - ec2_iam_role.worker is defined
+
+- name: Change subnet 2 name
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-private-{{subnets[2].zone}}"
+    replace: "{{ subnets[2].name }}"
+  with_fileglob:
+    - '{{ ignition_configs }}/manifests/*.y*ml'
+    - '{{ ignition_configs }}/openshift/*.y*ml'
+#  when: 
+#    - ec2_iam_role.worker is defined
+
+- name: Remove default Ingress Controller config
+  file:
+    path: "{{ ignition_configs }}/manifests/cluster-ingress-default-ingresscontroller.yaml"
+    state: absent
+
+- name: Configure Ingress Controller for HostNetwork
+  template:
+    src: cluster-ingress-default-ingresscontroller-hostnetwork.yaml.j2
+    dest: "{{ ignition_configs }}/manifests/cluster-ingress-default-ingresscontroller.yaml"
+    mode: 0644
+
+#- name: Configure Ingress Controller for Classic Load Balancer
+#  template:
+#    src: cluster-ingress-default-ingresscontroller-classic.yaml.j2
+#    dest: "{{ ignition_configs }}/manifests/cluster-ingress-default-ingresscontroller.yaml"
+#    mode: 0644
+
+#- name: Configure Ingress Controller for Network Load Balancer
+#  template:
+#    src: cluster-ingress-default-ingresscontroller-nlb.yaml.j2
+#    dest: "{{ ignition_configs }}/manifests/cluster-ingress-default-ingresscontroller.yaml"
+#    mode: 0644
+
+- name: Remove default cluster network config
+  file:
+    path: "{{ ignition_configs }}/manifests/cluster-network-03-config.yml"
+    state: absent
+  when:
+    - (platform is match("aws") and region is match("us-iso-east-1"))
+
+- name: Customize custom cluster network policy
+  template:
+    src: cluster-network-03-config.yml.j2
+    dest: "{{ ignition_configs }}/manifests/cluster-network-03-config.yml"
+    mode: 0644
+  when:
+    - (platform is match("aws") and region is match("us-iso-east-1"))
+
+#- name: Stop before generating ignition configs
+#  fail:
+#    msg: "Stop before generating ignition configs"
 
 - name: Create ignition configs
   shell: "{{ openshift_install }} create ignition-configs --dir={{ ignition_configs }}"
-
-# TODO: This task is broken and only needed in rare cases anyway
-#- name: Patch existing igntion systemd section
-#  ignition_systemd_patch:
-#    src: '{{ item }}'
-#    patch: "{{ role_path }}/files/nm-patch.json"
-#    backup: false
-#  with_fileglob:
-#    - '{{ ignition_configs }}/*.ign'
-
-#- name: Cleanup existing fakeroots
-#  file:
-#    path: '{{ fake_root_base }}'
-#    state: absent
-
-#- name: Build fakeroots directory structure for static networking config
-#  file:
-#    path: '{{ fake_root_base }}/{{ item.name }}/etc/sysconfig/network-scripts'
-#    state: directory
-#  with_items:
-#    - '{{ openshift_bootstrap }}'
-#    - '{{ openshift_masters }}'
-#    - '{{ openshift_workers }}'
-
-#- name: Create static network configs
-#  template:
-#    src: 'ifcfg.j2'
-#    dest: '{{ fake_root_base }}/{{ item.name }}/etc/sysconfig/network-scripts/ifcfg-{{ item.device }}'
-#    mode: 0644
-#  when:
-#    - (network_mode is match("static"))
-#  with_items:
-#    - '{{ openshift_bootstrap }}'
-#    - '{{ openshift_masters }}'
-#    - '{{ openshift_workers }}'
-
-#- name: Build fakeroots directory structure for module blacklist
-#  file:
-#    path: '{{ fake_root_base }}/{{ item.name }}/etc/modprobe.d'
-#    state: directory
-#  with_items:
-#    - '{{ openshift_bootstrap }}'
-#    - '{{ openshift_masters }}'
-#    - '{{ openshift_workers }}'
-
-#- name: Create kernel module blacklist file
-#  template:
-#    src: 'ocp-ign-blacklist.conf.j2'
-#    dest: '{{ fake_root_base }}/{{ item.name }}/etc/modprobe.d/ocp-ign-blacklist.conf'
-#    mode: 0644
-#  with_items:
-#    - '{{ openshift_bootstrap }}'
-#    - '{{ openshift_masters }}'
-#    - '{{ openshift_workers }}'
-
-#- name: Set pip args
-#  set_fact:
-#    pip_args: '{{ pip_args }} --user'
-
-#- name: check for filetranspiler
-#  stat:
-#    path: '{{ filetranspiler }}'
-#  register: filetranspiler_stat
-
-#- name: fail if filetranspiler not present
-#  fail:
-#    msg: "{{ filetranspiler }} not found. Make sure to install it"
-#  when: ( not filetranspiler_stat.stat.exists | bool )
-
-#- name: Install required pip modules for filetranspiler
-#  pip:
-#    name: "{{ filetranspiler_pip_requirements }}"
-#    state: present
-#    executable: "{{ pip_cmd }}"
-#    extra_args: '{{ pip_args }}'
-
-#- name: Install required RPMs for filetranspiler (RHEL 7)
-#  become: true
-#  vars:
-#    ansible_python_interpreter: '/usr/bin/python2'
-#  package:
-#    name: '{{ filetranspiler_rpm_requirements }}'
-#    state: present
-#  when: >
-#    (ansible_distribution == "RHEL" and
-#    ansible_distribution_major_version < '8') 
-
-#- name: Install required RPMs for filetranspiler (RHEL 8)
-#  become: true
-#  vars:
-#    ansible_python_interpreter: '/usr/bin/python2'
-#  package:
-#    name: '{{ filetranspiler_rpm_requirements }}'
-#    state: present
-#  when: >
-#    (ansible_distribution == "RHEL" and
-#    ansible_distribution_major_version >= '8')
-
-#- name: Customize ignition
-#  shell:
-#    cmd: |
-#
-#      {{filetranspiler}} -i {{ ignition_configs }}/{{ item.type }}.ign -f {{ fake_root_base }}/{{ item.name }} --format json -o {{ ignition_configs }}/{{ item.name }}.ign
-#
-#  with_items:
-#    - '{{ openshift_bootstrap }}'
-#    - '{{ openshift_masters }}'
-#    - '{{ openshift_workers }}'
 
 - name: Create kube config location
   file:
