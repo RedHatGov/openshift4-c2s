@@ -98,19 +98,20 @@
     regexp: 'mastersSchedulable: true'
     replace: 'mastersSchedulable: false'
 
-- name: Set cluster upgrade channel
-  replace:
-    path: "{{ ignition_configs }}/manifests/cvo-overrides.yaml"
-    regexp: 'channel:.*'
-    replace: 'channel: {{ cluster_channel }}'
+# TODO: This might not be needed anymore
+#- name: Set cluster upgrade channel
+#  replace:
+#    path: "{{ ignition_configs }}/manifests/cvo-overrides.yaml"
+#    regexp: 'channel:.*'
+#    replace: 'channel: {{ cluster_channel }}'
 
+# TODO: This might not be needed anymore, check the OSUS operator
 # Prevent the cluster from trying to reach the Cincinnati for update graphs
-- name: Set dummy Cincinnati server
-  replace:
-    path: "{{ ignition_configs }}/manifests/cvo-overrides.yaml"
-    regexp: 'upstream:.*'
-    replace: 'upstream: http://localhost:8080/graph'
-#  when: ( air_gapped | bool )
+#- name: Set dummy Cincinnati server
+#  replace:
+#    path: "{{ ignition_configs }}/manifests/cvo-overrides.yaml"
+#    regexp: 'upstream:.*'
+#    replace: 'upstream: http://localhost:8080/graph'
 
 - name: Remove default cloud provider config
   file:
