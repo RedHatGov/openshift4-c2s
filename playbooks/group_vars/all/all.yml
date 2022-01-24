@@ -54,3 +54,16 @@ httpd_document_root: '/var/www/html'
 
 pip_cmd: 'pip3'
 pip_args: ''
+
+kube_ssl_enabled: false
+
+stage_ignition: true
+
+ign_version:
+  '4.2': '2.1.0'
+  '4.3': '2.1.0'
+  '4.4': '2.1.0'
+  '4.5': '2.2.0'
+  '4.6': '3.1.0'
+  '4.7': '3.1.0'
+

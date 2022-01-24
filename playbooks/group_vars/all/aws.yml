@@ -1,0 +1,65 @@
+---
+
+subnets:
+  - name: ''
+    id: ''
+    zone: ''
+  - name: ''
+    id: ''
+    zone: ''
+  - name: ''
+    id: ''
+    zone: ''
+
+rhcos_ami:
+  '4.6.8':  'ami-01d4ce8cb7734d27b'
+  '4.7.0':  'ami-0ccf438713c096327'
+  '4.7.7':  'ami-0ccf438713c096327'
+  '4.7.13': 'ami-0ccf438713c096327'
+  '4.8.2': ''
+  '4.9.0': ''
+
+aws_region: 'us-east-1'
+ec2_endpoint: 'https://ec2.us-iso-east-1.c2s.ic.gov'
+s3_endpoint: 'https://s3.us-iso-east-1.c2s.ic.gov'
+route53_endpoint: 'https://route53.us-iso-east-1.c2s.ic.gov'
+elb_endpoint: 'https://elasticloadbalancing.us-iso-east-1.c2s.ic.gov'
+iam_endpoint:  'https://iam.us-iso-east-1.c2s.ic.gov'
+sts_endpoint: 'https://sts.us-iso-east-1.c2s.ic.gov'
+cloudformation_endpoint: 'https://cloudformation.us-iso-east-1.c2s.ic.gov'
+aws_ssl_enabled: false
+
+route53_enabled:
+
+combine: true
+
+ec2_key_name: 'Combine'
+
+vpc_id: 'vpc-'
+
+internal_api_target_group_arn: ''
+internal_service_target_group_arn: ''
+
+ec2_instance_type:
+  bootstrap: "i3.large"
+  master: "m5.xlarge"
+  worker: "m5.2xlarge"
+
+ec2_volume_size_root:
+  bootstrap: 120
+  master: 120
+  worker: 120
+
+ec2_iam_role:
+  bootstrap: "openshift4-boostrap-role"
+  master: "openshift4-master-role"
+  worker: "openshift4-worker-role"
+
+ec2_sg:
+  master:
+    id: 'sg-'
+    name: ''
+  worker:
+    id:
+    name:
+
