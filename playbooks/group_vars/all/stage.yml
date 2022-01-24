@@ -1,0 +1,7 @@
+---
+
+s3_staging: true
+s3_bucket: ''
+s3_path: 'ignition'
+
+httpd_staging: false
