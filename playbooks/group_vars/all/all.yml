@@ -1,0 +1,56 @@
+---
+
+rhcos_ver:
+ocp_ver:
+arch: 'x86_64'
+
+
+openshift_install: 'openshift-install-{{ocp_ver}}'
+openshift_client: 'oc-{{ocp_ver}}'
+kubectl: 'kubectl-{{ocp_ver}}'
+kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
+
+mirror_base: '/opt/openshift/'
+ignition_configs: '{{ mirror_base }}/cluster'
+pull_secret: '{{ mirror_base }}/pull-secret.txt'
+
+master_scheduleable: false
+cluster_channel: 'stable-{{ocp_ver:3}}'
+
+private_registry: true
+
+ssh_key_file: '{{ ansible_env.HOME }}/.ssh/id_ed25519'
+
+ocp_base_domain: 'openshift.io'
+ocp_cluster_name: 'caas'
+ocp_cluster_name_verbose: '{{ ocp_cluster_name}}.{{ ocp_base_domain }}'
+infrastructure_id: 'abc12'
+ocp_sdn: 'OpenShiftSDN'
+# External is not yet supported by the custom Cloudformation templates in this repo
+ocp_cluster_publish: 'Internal'
+
+master_count: 3
+worker_count: 3
+
+mirror_registry: 'bastion.{{ ocp_base_domain }}'
+mirror_registry_port: 5000
+mirror_transport: 'https'
+fips_enabled: false
+
+certificate_bundle: '/etc/pki/ca-trust/source/anchors/registry.crt'
+
+platform: 'aws'
+
+cluster_network_cidr: '10.128.0.0/14'
+cluster_network_prefix: 23
+service_network_cidr: '172.30.0.0/16'
+machine_network_cidr: '10.156.240.0/22'
+mtu: 8500
+vxlanPort: 4789
+
+network_policy: 'NetworkPolicy'
+
+httpd_document_root: '/var/www/html'
+
+pip_cmd: 'pip3'
+pip_args: ''
