@@ -61,6 +61,15 @@
   register: slurped_aws_api_ca_bundle_64
   when:
     - (platform is match("aws"))
+    - ( not combine | bool )
+
+- name: Slurp private AWS region API CA (Combine)
+  slurp:
+    src: 'roles/generate_ignition/files/combine_ca_bundle.pem'
+  register: slurped_aws_api_ca_bundle_64
+  when:
+    - (platform is match("aws"))
+    - ( combine | bool )
 
 - name: Copy template install-config.yaml
   template:
@@ -346,7 +355,7 @@
     path: "{{ ignition_configs }}/manifests/cluster-network-03-config.yml"
     state: absent
   when:
-    - (platform is match("aws") and region is match("us-iso-east-1"))
+    - (platform is match("aws") and aws_region is match("us-iso-east-1"))
 
 - name: Customize custom cluster network policy
   template:
@@ -354,7 +363,7 @@
     dest: "{{ ignition_configs }}/manifests/cluster-network-03-config.yml"
     mode: 0644
   when:
-    - (platform is match("aws") and region is match("us-iso-east-1"))
+    - (platform is match("aws") and aws_region is match("us-iso-east-1"))
 
 #- name: Stop before generating ignition configs
 #  fail:
