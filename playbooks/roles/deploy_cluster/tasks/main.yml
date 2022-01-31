@@ -105,3 +105,76 @@
   tags:
     - masters
 
+######## Not tested beyon this point
+- name: Stop, not tested beyond this point
+  fail:
+    msg: "Not tested beyond this point"
+
+- name: Deploy worker 0 cloudformation stack
+  amazon.aws.cloudformation:
+    stack_name: openshift4-worker-0
+    state: present
+    region: "{{ aws_region }}"
+    ec2_url: "{{ cloudformation_endpoint }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    disable_rollback: true
+    create_timeout: 5
+    template: "../cloudformation/c2s/NGA/06_cluster_worker_node.yaml"
+    template_parameters:
+      ClusterName: "{{ ocp_cluster_name }}"
+      InfrastructureName: "{{ infrastructure_id }}"
+      RhcosAmi: "{{ rhcos_ami[rhcos_ver] }}"
+      Subnet: "{{ subnets[0].id }}"
+      IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
+      WorkerSecurityGroupId: "{{ ec2_sg.worker.id }}"
+      WorkerInstanceProfileName: "{{ ec2_iam_role.master }}"
+      IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
+  register: worker0_stack_outputs
+  tags:
+    - workers
+
+- name: Deploy worker 1 cloudformation stack
+  amazon.aws.cloudformation:
+    stack_name: openshift4-worker-1
+    state: present
+    region: "{{ aws_region }}"
+    ec2_url: "{{ cloudformation_endpoint }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    disable_rollback: true
+    create_timeout: 5
+    template: "../cloudformation/c2s/NGA/06_cluster_worker_node.yaml"
+    template_parameters:
+      ClusterName: "{{ ocp_cluster_name }}"
+      InfrastructureName: "{{ infrastructure_id }}"
+      RhcosAmi: "{{ rhcos_ami[rhcos_ver] }}"
+      Subnet: "{{ subnets[1].id }}"
+      IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
+      WorkerSecurityGroupId: "{{ ec2_sg.worker.id }}"
+      WorkerInstanceProfileName: "{{ ec2_iam_role.master }}"
+      IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
+  register: worker1_stack_outputs
+  tags:
+    - workers
+
+- name: Deploy worker 2 cloudformation stack
+  amazon.aws.cloudformation:
+    stack_name: openshift4-worker-2
+    state: present
+    region: "{{ aws_region }}"
+    ec2_url: "{{ cloudformation_endpoint }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    disable_rollback: true
+    create_timeout: 5
+    template: "../cloudformation/c2s/NGA/06_cluster_worker_node.yaml"
+    template_parameters:
+      ClusterName: "{{ ocp_cluster_name }}"
+      InfrastructureName: "{{ infrastructure_id }}"
+      RhcosAmi: "{{ rhcos_ami[rhcos_ver] }}"
+      Subnet: "{{ subnets[2].id }}"
+      IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
+      WorkerSecurityGroupId: "{{ ec2_sg.worker.id }}"
+      WorkerInstanceProfileName: "{{ ec2_iam_role.master }}"
+      IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
+  register: worker2_stack_outputs
+  tags:
+    - workers
