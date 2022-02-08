@@ -1,12 +1,45 @@
 ---
 
-- name: Deploy bootstrap Cloudformation stack
-  amazon.aws.cloudformation:
-    stack_name: openshift4-bootstrap
-    state: present
+# Get the subnet info so we can grab existing tags
+- amazon.aws.ec2_vpc_subnet_info:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
     region: "{{ aws_region }}"
     ec2_url: "{{ cloudformation_endpoint }}"
     validate_certs: "{{ aws_ssl_enabled }}"
+    subnet_ids: "{{ subnets[0].id }}"
+  register: subnet_info
+
+# TODO: Subnets and other existing resources may need to be tagged as well
+#- name: Tag subnets so that AWS can use them to create LBs
+#  amazon.aws.ec2_vpc_subnet:
+#    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+#    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+#    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+#    region: "{{ aws_region }}"
+#    ec2_url: "{{ cloudformation_endpoint }}"
+#    validate_certs: "{{ aws_ssl_enabled }}"
+#    state: present
+#    vpc_id: vpc-123456
+#    cidr: 10.0.1.16/28
+#    tags:
+#        - Key: "Name"
+#          Value: !Join ["-", [!Ref InfrastructureName, "public", !Select [0, Fn::GetAZs: !Ref "AWS::Region"]]]
+#        - Key: !Join ["", [kubernetes.io/cluster/, !Ref InfrastructureName]]
+#          Value: owned
+#  register: database_subnet
+
+- name: Deploy bootstrap Cloudformation stack
+  amazon.aws.cloudformation:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ aws_region }}"
+    ec2_url: "{{ cloudformation_endpoint }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    stack_name: openshift4-bootstrap
+    state: present
     disable_rollback: true
     create_timeout: 5
     template: "../cloudformation/c2s/NGA/04_cluster_bootstrap.yaml"
@@ -33,11 +66,13 @@
   tags:
     - bootstrap
 
+# Ansible task for this doesn't work correctly in C2S do to some api version error
 - name: Add bootstrap node to the api target group
   shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ bootstrap_strap_outputs.stack_outputs.BootstrapPrivateIp }}"}'
   tags:
     - bootstrap
 
+# Ansible task for this doesn't work correctly in C2S do to some api version error
 - name: Add bootstra node to the service api taget group
   shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ bootstrap_strap_outputs.stack_outputs.BootstrapPrivateIp }}"}'
   tags:
@@ -45,11 +80,14 @@
 
 - name: Deploy control plane Cloudformation stack
   amazon.aws.cloudformation:
-    stack_name: openshift4-control-plane
-    state: present
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
     region: "{{ aws_region }}"
     ec2_url: "{{ cloudformation_endpoint }}"
     validate_certs: "{{ aws_ssl_enabled }}"
+    stack_name: openshift4-control-plane
+    state: present
     disable_rollback: true
     create_timeout: 5
     template: "../cloudformation/c2s/NGA/"
@@ -75,31 +113,37 @@
   tags:
     - masters
 
+# Ansible task for this doesn't work correctly in C2S do to some api version error
 - name: Add master 0 node to api target group
   shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ master_stack_outputs.stack_outputs.Master0PrivateIp }}"}'
   tags:
     - masters
 
+# Ansible task for this doesn't work correctly in C2S do to some api version error
 - name: Add master 1 node to api target group
   shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ master_stack_outputs.stack_outputs.Master1PrivateIp }}"}'
   tags:
     - masters
 
+# Ansible task for this doesn't work correctly in C2S do to some api version error
 - name: Add master 2 node to api target group
   shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ master_stack_outputs.stack_outputs.Master2PrivateIp }}"}'
   tags:
     - masters
 
+# Ansible task for this doesn't work correctly in C2S do to some api version error
 - name: Add master 0 node to service target group
   shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ master_stack_outputs.stack_outputs.Master0PrivateIp }}"}'
   tags:
     - masters
 
+# Ansible task for this doesn't work correctly in C2S do to some api version error
 - name: Add master 1 node to service target group
   shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ master_stack_outputs.stack_outputs.Master1PrivateIp }}"}'
   tags:
     - masters
 
+# Ansible task for this doesn't work correctly in C2S do to some api version error
 - name: Add master 2 node to service target group
   shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ master_stack_outputs.stack_outputs.Master2PrivateIp }}"}'
   tags:
