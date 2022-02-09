@@ -1,5 +1,11 @@
 ---
 
+# VPC variables
+#vpc_cidr: 10.0.0.0/16
+#az_count: 3
+#subnet_bits: 12
+##########################
+
 subnets:
   - name: ''
     id: ''
@@ -26,9 +32,9 @@ elb_endpoint: 'https://elasticloadbalancing.us-iso-east-1.c2s.ic.gov'
 iam_endpoint:  'https://iam.us-iso-east-1.c2s.ic.gov'
 sts_endpoint: 'https://sts.us-iso-east-1.c2s.ic.gov'
 cloudformation_endpoint: 'https://cloudformation.us-iso-east-1.c2s.ic.gov'
-aws_ssl_enabled: false
+aws_ssl_enabled: true
 
-route53_enabled:
+route53_enabled: true
 
 combine: true
 
