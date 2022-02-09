@@ -1,19 +1,22 @@
 ---
 
 # Get the subnet info so we can grab existing tags
-- amazon.aws.ec2_vpc_subnet_info:
-    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
-    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
-    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
-    region: "{{ aws_region }}"
-    ec2_url: "{{ cloudformation_endpoint }}"
-    validate_certs: "{{ aws_ssl_enabled }}"
-    subnet_ids: "{{ subnets[0].id }}"
-  register: subnet_info
+#- name: Get subnet info
+#  amazon.aws.ec2_vpc_subnet_info:
+#  delegate_to: localhost
+#    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+#    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+#    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+#    region: "{{ aws_region }}"
+#    ec2_url: "{{ cloudformation_endpoint }}"
+#    validate_certs: "{{ aws_ssl_enabled }}"
+#    subnet_ids: "{{ subnets[0].id }}"
+#  register: subnet_info
 
 # TODO: Subnets and other existing resources may need to be tagged as well
 #- name: Tag subnets so that AWS can use them to create LBs
 #  amazon.aws.ec2_vpc_subnet:
+#  delegate_to: localhost
 #    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
 #    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
 #    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
@@ -31,6 +34,7 @@
 #  register: database_subnet
 
 - name: Deploy bootstrap Cloudformation stack
+  delegate_to: localhost
   amazon.aws.cloudformation:
     aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
     aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
@@ -69,6 +73,7 @@
 # Ansible task for this doesn't work correctly in C2S do to some api version error
 # This has not been combined with the loop below for the control plane to allow independent deployment of the boostrap node
 - name: Add bootstrap node to the api target group
+  delegate_to: localhost
   shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ bootstrap_strap_outputs.stack_outputs.BootstrapPrivateIp }}"}'
   tags:
     - bootstrap
@@ -76,11 +81,13 @@
 # Ansible task for this doesn't work correctly in C2S do to some api version error
 # This has not been combined with the loop below for the control plane to allow independent deployment of the boostrap node
 - name: Add bootstra node to the service api taget group
+  delegate_to: localhost
   shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ bootstrap_strap_outputs.stack_outputs.BootstrapPrivateIp }}"}'
   tags:
     - bootstrap
 
 - name: Deploy control plane Cloudformation stack
+  delegate_to: localhost
   amazon.aws.cloudformation:
     aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
     aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
@@ -117,6 +124,7 @@
 
 # Ansible task for this doesn't work correctly in C2S do to some api version error
 - name: Add control plane nodes to api target group
+  delegate_to: localhost
   shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ item }}"}'
   loop:
     - "{{ master_stack_outputs.stack_outputs.Master0PrivateIp }}"
@@ -127,6 +135,7 @@
 
 # Ansible task for this doesn't work correctly in C2S do to some api version error
 - name: Add control plane nodes to service target group
+  delegate_to: localhost
   shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ item }}"}'
   loop:
     - "{{ master_stack_outputs.stack_outputs.Master0PrivateIp }}"
@@ -141,6 +150,7 @@
     msg: "Not tested beyond this point"
 
 - name: Deploy worker 0 cloudformation stack
+  delegate_to: localhost
   amazon.aws.cloudformation:
     stack_name: openshift4-worker-0
     state: present
@@ -164,6 +174,7 @@
     - workers
 
 - name: Deploy worker 1 cloudformation stack
+  delegate_to: localhost
   amazon.aws.cloudformation:
     stack_name: openshift4-worker-1
     state: present
@@ -187,6 +198,7 @@
     - workers
 
 - name: Deploy worker 2 cloudformation stack
+  delegate_to: localhost
   amazon.aws.cloudformation:
     stack_name: openshift4-worker-2
     state: present
