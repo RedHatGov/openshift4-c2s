@@ -1,0 +1,11 @@
+---
+
+- hosts: localhost
+  gather_facts: true
+  become: false
+  tasks:
+
+    - name: Deploy VPC for OpenShift4
+      import_role:
+        name: deploy_cluster
+        tasks_from: deploy_vpc.yml

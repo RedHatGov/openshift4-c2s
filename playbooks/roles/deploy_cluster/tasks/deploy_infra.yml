@@ -1,0 +1,36 @@
+---
+
+- name: Deploy Network Cloudformation stack
+  amazon.aws.cloudformation:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    #ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    stack_name: openshift4-infra
+    state: present
+    disable_rollback: true
+    create_timeout: 10
+    #template: "../cloudformation/c2s/vpc.yaml"
+    template: "{{ playbook_dir }}/../cloudformation/c2s/network.yaml"
+    template_parameters:
+      InfrastructureName: "{{ infrastructure_id }}"
+      VpcCidr: "{{ vpc_cidr | default(omit) }}"
+      AvailabilityZoneCount: "{{ az_count | default(omit) }}"
+      SubnetBits: "{{ subnet_bits | default(omit) }}"
+
+
+  ClusterName:
+  InfrastructureName:
+  HostedZoneId:
+  HostedZoneName:
+  PublicSubnets:
+  PrivateSubnets:
+  VpcId:
+
+
+  register: vpc_stack_outputs
+  tags:
+    - vpc
+
