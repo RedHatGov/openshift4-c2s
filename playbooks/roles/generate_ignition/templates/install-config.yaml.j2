@@ -36,7 +36,7 @@ networking:
 platform:
 {% if platform == 'aws' %}
   aws:
-    region: '{{ aws_region }}'
+    region: '{{ ansible_env.AWS_DEFAULT_REGION }}'
     amiID: "{{ rhcos_ami[ rhcos_ver ] }}"
     serviceEndpoints:
       - name: "ec2"

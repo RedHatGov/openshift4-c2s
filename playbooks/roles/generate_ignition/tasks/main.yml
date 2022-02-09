@@ -355,7 +355,7 @@
     path: "{{ ignition_configs }}/manifests/cluster-network-03-config.yml"
     state: absent
   when:
-    - (platform is match("aws") and aws_region is match("us-iso-east-1"))
+    - (platform is match("aws") and ansible_env.AWS_DEFAULT_REGION is match("us-iso-east-1"))
 
 - name: Customize custom cluster network policy
   template:
@@ -363,7 +363,7 @@
     dest: "{{ ignition_configs }}/manifests/cluster-network-03-config.yml"
     mode: 0644
   when:
-    - (platform is match("aws") and aws_region is match("us-iso-east-1"))
+    - (platform is match("aws") and ansible_env.AWS_DEFAULT_REGION is match("us-iso-east-1"))
 
 #- name: Stop before generating ignition configs
 #  fail:

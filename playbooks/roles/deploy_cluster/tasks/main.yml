@@ -7,7 +7,7 @@
 #    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
 #    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
 #    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
-#    region: "{{ aws_region }}"
+#    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
 #    ec2_url: "{{ cloudformation_endpoint }}"
 #    validate_certs: "{{ aws_ssl_enabled }}"
 #    subnet_ids: "{{ subnets[0].id }}"
@@ -20,7 +20,7 @@
 #    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
 #    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
 #    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
-#    region: "{{ aws_region }}"
+#    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
 #    ec2_url: "{{ cloudformation_endpoint }}"
 #    validate_certs: "{{ aws_ssl_enabled }}"
 #    state: present
@@ -39,7 +39,7 @@
     aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
     aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
     security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
-    region: "{{ aws_region }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
     ec2_url: "{{ cloudformation_endpoint }}"
     validate_certs: "{{ aws_ssl_enabled }}"
     stack_name: openshift4-bootstrap
@@ -92,7 +92,7 @@
     aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
     aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
     security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
-    region: "{{ aws_region }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
     ec2_url: "{{ cloudformation_endpoint }}"
     validate_certs: "{{ aws_ssl_enabled }}"
     stack_name: openshift4-control-plane
@@ -154,7 +154,7 @@
   amazon.aws.cloudformation:
     stack_name: openshift4-worker-0
     state: present
-    region: "{{ aws_region }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
     ec2_url: "{{ cloudformation_endpoint }}"
     validate_certs: "{{ aws_ssl_enabled }}"
     disable_rollback: true
@@ -178,7 +178,7 @@
   amazon.aws.cloudformation:
     stack_name: openshift4-worker-1
     state: present
-    region: "{{ aws_region }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
     ec2_url: "{{ cloudformation_endpoint }}"
     validate_certs: "{{ aws_ssl_enabled }}"
     disable_rollback: true
@@ -202,7 +202,7 @@
   amazon.aws.cloudformation:
     stack_name: openshift4-worker-2
     state: present
-    region: "{{ aws_region }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
     ec2_url: "{{ cloudformation_endpoint }}"
     validate_certs: "{{ aws_ssl_enabled }}"
     disable_rollback: true
