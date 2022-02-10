@@ -49,19 +49,19 @@ Parameters:
       Ignition config file location. (Ex: s3://my-s3-bucket/bootstrap.ign)
     Type: String
 
-  AutoRegisterELB:
-    AllowedValues:
-      - "yes"
-      - "no"
-    Description: >-
-      Do you want to invoke NLB registration, which requires a Lambda ARN parameter?
-    Default: "yes"
-    Type: String
+#  AutoRegisterELB:
+#    AllowedValues:
+#      - "yes"
+#      - "no"
+#    Description: >-
+#      Do you want to invoke NLB registration, which requires a Lambda ARN parameter?
+#    Default: "yes"
+#    Type: String
 
-  RegisterNlbIpTargetsLambdaArn:
-    Description: >-
-      ARN for NLB IP target registration lambda.
-    Type: String
+#  RegisterNlbIpTargetsLambdaArn:
+#    Description: >-
+#      ARN for NLB IP target registration lambda.
+#    Type: String
 
   ExternalApiTargetGroupArn:
     Description: >-
@@ -100,7 +100,7 @@ Metadata:
       - Label:
           default: "Load Balancer Automation"
         Parameters:
-          - AutoRegisterELB
+#          - AutoRegisterELB
           - RegisterNlbIpTargetsLambdaArn
           - ExternalApiTargetGroupArn
           - InternalApiTargetGroupArn
@@ -120,11 +120,11 @@ Metadata:
         default: "Bootstrap Ignition Source"
       MasterSecurityGroupId:
         default: "Master Security Group ID"
-      AutoRegisterELB:
-        default: "Use Provided ELB Automation"
+#      AutoRegisterELB:
+#        default: "Use Provided ELB Automation"
 
-Conditions:
-  DoRegistration: !Equals ["yes", !Ref AutoRegisterELB]
+#Conditions:
+#  DoRegistration: !Equals ["yes", !Ref AutoRegisterELB]
 
 Resources:
   BootstrapIamRole:
@@ -213,29 +213,29 @@ Resources:
         - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
           Value: "owned"
 
-  RegisterBootstrapApiTarget:
-    Condition: DoRegistration
-    Type: Custom::NLBRegister
-    Properties:
-      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-      TargetArn: !Ref ExternalApiTargetGroupArn
-      TargetIp: !GetAtt BootstrapInstance.PrivateIp
+#  RegisterBootstrapApiTarget:
+#    Condition: DoRegistration
+#    Type: Custom::NLBRegister
+#    Properties:
+#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+#      TargetArn: !Ref ExternalApiTargetGroupArn
+#      TargetIp: !GetAtt BootstrapInstance.PrivateIp
 
-  RegisterBootstrapInternalApiTarget:
-    Condition: DoRegistration
-    Type: Custom::NLBRegister
-    Properties:
-      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-      TargetArn: !Ref InternalApiTargetGroupArn
-      TargetIp: !GetAtt BootstrapInstance.PrivateIp
+#  RegisterBootstrapInternalApiTarget:
+#    Condition: DoRegistration
+#    Type: Custom::NLBRegister
+#    Properties:
+#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+#      TargetArn: !Ref InternalApiTargetGroupArn
+#      TargetIp: !GetAtt BootstrapInstance.PrivateIp
 
-  RegisterBootstrapInternalServiceTarget:
-    Condition: DoRegistration
-    Type: Custom::NLBRegister
-    Properties:
-      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-      TargetArn: !Ref InternalServiceTargetGroupArn
-      TargetIp: !GetAtt BootstrapInstance.PrivateIp
+#  RegisterBootstrapInternalServiceTarget:
+#    Condition: DoRegistration
+#    Type: Custom::NLBRegister
+#    Properties:
+#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+#      TargetArn: !Ref InternalServiceTargetGroupArn
+#      TargetIp: !GetAtt BootstrapInstance.PrivateIp
 
 Outputs:
   BootstrapInstanceId:
