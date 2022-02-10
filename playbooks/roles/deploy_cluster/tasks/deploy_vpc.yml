@@ -8,7 +8,7 @@
     region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
     #ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
     validate_certs: "{{ aws_ssl_enabled }}"
-    stack_name: openshift4vpc
+    stack_name: "{{ vpc_stack_name }}"
     state: present
     disable_rollback: true
     create_timeout: 10
