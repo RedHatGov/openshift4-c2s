@@ -8,11 +8,10 @@
     region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
     #ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
     validate_certs: "{{ aws_ssl_enabled }}"
-    stack_name: openshift4-vpc
+    stack_name: openshift4vpc
     state: present
     disable_rollback: true
     create_timeout: 10
-    #template: "../cloudformation/c2s/vpc.yaml"
     template: "{{ playbook_dir }}/../cloudformation/c2s/vpc.yaml"
     template_parameters:
       InfrastructureName: "{{ infrastructure_id }}"

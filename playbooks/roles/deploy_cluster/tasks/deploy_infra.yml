@@ -1,6 +1,54 @@
 ---
 
+- name: Get vpc stack info
+  delegate_to: localhost
+  amazon.aws.cloudformation_info:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    #ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    stack_name: openshift4vpc
+    stack_resources: true
+  register: cf_outputs
+  failed_when: cf_outputs.cloudformation.openshift4vpc is undefined
+
+- name: Set subnets to empty
+  set_fact:
+    ec2_public_subnets: "{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PublicSubnet1 }}"
+    ec2_private_subnets: "{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PrivateSubnet1 }}"
+
+- name: Add public subnet 2 if it exists
+  set_fact:
+    ec2_public_subnets: "{{ ec2_public_subnets }},{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PublicSubnet2 }}"
+  when: cf_outputs.cloudformation.openshift4vpc.stack_resources.PublicSubnet2 is defined
+
+- name: Add public subnet 3 if it exists
+  set_fact:
+    ec2_public_subnets: "{{ ec2_public_subnets }},{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PublicSubnet3 }}"
+  when: cf_outputs.cloudformation.openshift4vpc.stack_resources.PublicSubnet3 is defined
+
+- name: Add private subnet 2 if it exists
+  set_fact:
+    ec2_private_subnets: "{{ ec2_private_subnets }},{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PrivateSubnet2 }}"
+  when: cf_outputs.cloudformation.openshift4vpc.stack_resources.PrivateSubnet2 is defined
+
+- name: Add private subnet 3 if it exists
+  set_fact:
+    ec2_private_subnets: "{{ ec2_private_subnets }},{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PrivateSubnet3 }}"
+  when: cf_outputs.cloudformation.openshift4vpc.stack_resources.PrivateSubnet3 is defined
+
+#- name: Show public subnets
+#  debug:
+#    var: ec2_public_subnets
+
+#- name: Show private subnets
+#  debug:
+#    var: ec2_private_subnets
+
 - name: Deploy Network Cloudformation stack
+  delegate_to: localhost
   amazon.aws.cloudformation:
     aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
     aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
@@ -8,29 +56,19 @@
     region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
     #ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
     validate_certs: "{{ aws_ssl_enabled }}"
-    stack_name: openshift4-infra
+    stack_name: openshift4infra
     state: present
-    disable_rollback: true
+    disable_rollback: false
     create_timeout: 10
-    #template: "../cloudformation/c2s/vpc.yaml"
     template: "{{ playbook_dir }}/../cloudformation/c2s/network.yaml"
     template_parameters:
+      ClusterName: "{{ ocp_cluster_name }}"
       InfrastructureName: "{{ infrastructure_id }}"
-      VpcCidr: "{{ vpc_cidr | default(omit) }}"
-      AvailabilityZoneCount: "{{ az_count | default(omit) }}"
-      SubnetBits: "{{ subnet_bits | default(omit) }}"
-
-
-  ClusterName:
-  InfrastructureName:
-  HostedZoneId:
-  HostedZoneName:
-  PublicSubnets:
-  PrivateSubnets:
-  VpcId:
-
-
-  register: vpc_stack_outputs
+      HostedZoneId: "{{ hosted_zone_id }}"
+      HostedZoneName: "{{ ocp_base_domain }}"
+      PublicSubnets: "{{ ec2_public_subnets }}"
+      PrivateSubnets: "{{ ec2_private_subnets }}"
+      VpcId: "{{ cf_outputs.cloudformation.openshift4vpc.stack_outputs.VpcId }}"
+  register: network_stack_outputs
   tags:
-    - vpc
-
+    - network
