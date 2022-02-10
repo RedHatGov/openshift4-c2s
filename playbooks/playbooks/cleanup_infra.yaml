@@ -1,0 +1,11 @@
+---
+
+- hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+
+    - name: Destroy OpenShift4 Infra
+      import_role:
+        name: cleanup_cluster
+        tasks_from: cleanup_infra.yml
