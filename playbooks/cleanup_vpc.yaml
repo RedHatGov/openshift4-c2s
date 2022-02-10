@@ -1,0 +1,11 @@
+---
+
+- hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+
+    - name: Destroy OpenShift4 VPC
+      import_role:
+        name: cleanup_cluster
+        tasks_from: cleanup_vpc.yml
