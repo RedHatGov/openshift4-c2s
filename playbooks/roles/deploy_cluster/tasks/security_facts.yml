@@ -1,0 +1,38 @@
+---
+
+- name: Get Security Stack Facts
+  delegate_to: localhost
+  amazon.aws.cloudformation_info:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    #ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    stack_name: "{{ security_stack_name }}"
+    stack_resources: true
+  register: sec_stack_outputs
+
+- debug:
+    var: sec_stack_outputs
+
+- name: Set IAM Role facts
+  set_fact:
+    ec2_iam_role:
+      bootstrap: ""
+      master: "{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.MasterIamRole }}"
+      worker: "{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.WorkerIamRole }}"
+    ec2_instance_profile:
+      master: "{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.MasterInstanceProfile }}"
+      worker: "{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.WorkerInstanceProfile }}"
+
+- name: Set security group facts
+  set_fact:
+    ec2_sg:
+      master:
+        id: '{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.MasterSecurityGroup }}'
+        name: ''
+      worker:
+        id: '{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.WorkerSecurityGroup }}'
+        name: ''
+

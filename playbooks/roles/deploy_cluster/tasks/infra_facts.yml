@@ -1,0 +1,29 @@
+---
+
+- name: Get Infra Stack Facts
+  delegate_to: localhost
+  amazon.aws.cloudformation_info:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    #ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    stack_name: "{{ infra_stack_name }}"
+    stack_resources: true
+  register: network_stack_outputs
+
+#- debug:
+#    var: network_stack_outputs
+
+- name: Set external api target group arn
+  set_fact:
+    external_api_target_group_arn: "{{ network_stack_outputs.cloudformation.openshift4infra.stack_resources.ExternalApiTargetGroup }}"
+
+- name: Set internal api target group arn
+  set_fact:
+    internal_api_target_group_arn: "{{ network_stack_outputs.cloudformation.openshift4infra.stack_resources.InternalApiTargetGroup }}"
+
+- name: Set inter service target group arn
+  set_fact:
+    internap_service_target_group_arn: "{{ network_stack_outputs.cloudformation.openshift4infra.stack_resources.InternalServiceTargetGroup }}"
