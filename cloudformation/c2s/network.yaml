@@ -89,6 +89,8 @@ Metadata:
       HostedZoneId:
         default: "Public Hosted Zone ID"
 
+# TODO: Need a conditional on creating a route53 zone
+
 Resources:
   ExtApiElb:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer

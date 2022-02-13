@@ -34,6 +34,8 @@ Parameters:
       The internal subnets.
     Type: List<AWS::EC2::Subnet::Id>
 
+# TODO: Need a conditional for creating the IAM roles
+
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:

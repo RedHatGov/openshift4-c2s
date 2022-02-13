@@ -1,7 +1,7 @@
 ---
 apiVersion: v1
 baseDomain: "{{ ocp_base_domain }}"
-{% if platform == 'aws' %}
+{% if platform == 'aws' and credentials_mode is defined %}
 credentialsMode: "{{ credentials_mode }}"
 {% endif %}
 compute:
@@ -37,6 +37,7 @@ platform:
 {% if platform == 'aws' %}
   aws:
     region: '{{ ansible_env.AWS_DEFAULT_REGION }}'
+{% if ansible_env.AWS_DEFAULT_REGION == 'us-iso-east-1' %}
     amiID: "{{ rhcos_ami[ rhcos_ver ] }}"
     serviceEndpoints:
       - name: "ec2"
@@ -53,13 +54,17 @@ platform:
         url: 'https://tagging.us-iso-east-1.c2s.ic.gov'
       - name: "sts"
         url: 'https://sts.us-iso-east-1.c2s.ic.gov'
+{% endif %}
     userTags:
       CLAP_OFF: "NEVER"
       CLAP_ON: "NEVER"
     subnets:
-    - {{ subnets[0].id }}
-    - {{ subnets[1].id }}
-    - {{ subnets[2].id }}
+    - {{ private_subnets[0].id }}
+    - {{ private_subnets[1].id }}
+    - {{ private_subnets[2].id }}
+    - {{ public_subnets[0].id }}
+    - {{ public_subnets[1].id }}
+    - {{ public_subnets[2].id }}
 {% else %}
   none: {}
 {% endif %}
@@ -67,17 +72,10 @@ pullSecret: '{{ slurped_pull_secret_b64.content | b64decode | trim }}'
 sshKey: '{{ slurped_key_b64.content | b64decode | trim }}'
 fips: {{ fips_enabled | bool | lower }}
 publish: "{{ ocp_cluster_publish }}"
-{% if private_registry or platform == 'vmware' %}
+{% if private_registry %}
 additionalTrustBundle: |
 {% if private_registry %}
 {{ slurped_registry_ca_bundle_b64.content | b64decode | trim }}
-{% endif %}
-{% if platform == 'vmware' %}
-{% if slurped_vcenter_ca_bundle_b64 is defined %}
-{% for cert in slurped_vcenter_ca_bundle_b64.results %}
-{{ cert.content | b64decode | trim }}
-{% endfor %}
-{% endif %}
 {% endif %}
 {% endif %}
 {% if private_registry %}

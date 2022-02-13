@@ -123,6 +123,8 @@ Metadata:
 #      AutoRegisterELB:
 #        default: "Use Provided ELB Automation"
 
+# TODO: Need a conditional on the creation of the Bootstrap IAM role
+
 #Conditions:
 #  DoRegistration: !Equals ["yes", !Ref AutoRegisterELB]
 
