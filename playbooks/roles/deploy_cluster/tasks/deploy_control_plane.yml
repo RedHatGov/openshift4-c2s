@@ -1,0 +1,59 @@
+---
+
+- name: Deploy control plane Cloudformation stack
+  delegate_to: localhost
+  amazon.aws.cloudformation:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    ec2_url: "{{ cloudformation_endpoint }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    stack_name: openshift4-control-plane
+    state: present
+    disable_rollback: true
+    create_timeout: 5
+    template: "../cloudformation/c2s/control_plane.yaml"
+    template_parameters:
+      ClusterName: "{{ ocp_cluster_name }}"
+      InfrastructureName: "{{ infrastructure_id }}"
+      RhcosAmi: "{{ rhcos_ami[rhcos_ver] }}"
+      Master0Subnet: "{{ subnets[0].id }}"
+      Master1Subnet: "{{ subnets[1].id }}"
+      Master2Subnet: "{{ subnets[2].id }}"
+      IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
+      InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
+      InternalServiceTargetGropArn: "{{ internap_service_target_group_arn }}"
+      MasterInstanceProfileName: "{{ ec2_iam_role.master }}"
+      IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
+  register: master_stack_outputs
+  tags:
+    - masters
+
+#- name: show master stack output
+#  debug:
+#    var: master_stack_outputs
+#  tags:
+#    - masters
+
+# Ansible task for this doesn't work correctly in C2S do to some api version error
+- name: Add control plane nodes to api target group
+  delegate_to: localhost
+  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ item }}"}'
+  loop:
+    - "{{ master_stack_outputs.stack_outputs.Master0PrivateIp }}"
+    - "{{ master_stack_outputs.stack_outputs.Master1PrivateIp }}"
+    - "{{ master_stack_outputs.stack_outputs.Master2PrivateIp }}"
+  tags:
+    - masters
+
+# Ansible task for this doesn't work correctly in C2S do to some api version error
+- name: Add control plane nodes to service target group
+  delegate_to: localhost
+  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ item }}"}'
+  loop:
+    - "{{ master_stack_outputs.stack_outputs.Master0PrivateIp }}"
+    - "{{ master_stack_outputs.stack_outputs.Master1PrivateIp }}"
+    - "{{ master_stack_outputs.stack_outputs.Master2PrivateIp }}"
+  tags:
+    - masters

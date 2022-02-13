@@ -71,6 +71,27 @@
     - (platform is match("aws"))
     - ( combine | bool )
 
+- name: Pull in vpc cloudformation facts
+  import_role:
+    name: deploy_cluster
+    tasks_from: vpc_facts.yml
+  when:
+    - (cloudformation_based | bool)
+
+- name: Pull in infra cloudformation facts
+  import_role:
+    name: deploy_cluster
+    tasks_from: infra_facts.yml
+  when:
+    - (cloudformation_based | bool)
+
+- name: Pull in security cloudformation facts
+  import_role:
+    name: deploy_cluster
+    tasks_from: security_facts.yml
+  when:
+    - (cloudformation_based | bool)
+
 - name: Copy template install-config.yaml
   template:
     src: install-config.yaml.j2
@@ -100,6 +121,10 @@
 
 - name: Create manifests
   shell: "{{ openshift_install }} create manifests --dir={{ ignition_configs }}"
+
+- name: Stop after creating manifests
+  fail:
+    msg: "Stop after creating manifests"
 
 - name: Set masters to unschedulable
   replace:
@@ -269,8 +294,6 @@
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
-#  when: 
-#    - ec2_iam_role.worker is defined
 
 - name: Change the worker security group from the default pattern
   ansible.builtin.replace:
@@ -291,8 +314,15 @@
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
-#  when: 
-#    - ec2_iam_role.worker is defined
+
+- name: Change master machine set internal LB name
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-ext"
+    replace: "{{infrastructure_id}}-ext"
+  with_fileglob:
+    - '{{ ignition_configs }}/manifests/*.y*ml'
+    - '{{ ignition_configs }}/openshift/*.y*ml'
 
 - name: Change subnet 0 name
   ansible.builtin.replace:
@@ -302,8 +332,6 @@
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
-#  when: 
-#    - ec2_iam_role.worker is defined
 
 - name: Change subnet 1 name
   ansible.builtin.replace:
@@ -313,8 +341,6 @@
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
-#  when: 
-#    - ec2_iam_role.worker is defined
 
 - name: Change subnet 2 name
   ansible.builtin.replace:
@@ -324,8 +350,6 @@
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
-#  when: 
-#    - ec2_iam_role.worker is defined
 
 - name: Remove default Ingress Controller config
   file:

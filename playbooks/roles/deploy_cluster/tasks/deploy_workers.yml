@@ -1,0 +1,28 @@
+---
+
+- name: Deploy worker {{ item }} cloudformation stack
+  delegate_to: localhost
+  amazon.aws.cloudformation:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    #ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    stack_name: "{{ workers_stack_name }}0"
+    state: present
+    disable_rollback: true
+    create_timeout: 5
+    template: "../cloudformation/c2s/worker.yaml"
+    template_parameters:
+      ClusterName: "{{ ocp_cluster_name }}"
+      InfrastructureName: "{{ infrastructure_id }}"
+      RhcosAmi: "{{ rhcos_ami[rhcos_ver] }}"
+      Subnet: "{{ subnets[item].id }}"
+      IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
+      WorkerSecurityGroupId: "{{ ec2_sg.worker.id }}"
+      WorkerInstanceProfileName: "{{ ec2_iam_role.master }}"
+      IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
+  with_sequence: start=0 end="{{ end_at }}"
+  vars:
+    - end_at: {{ worker_count }} - 1

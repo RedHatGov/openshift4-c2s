@@ -1,0 +1,66 @@
+---
+
+- name: Get vpc facts
+  include_tasks: vpc_facts.yml
+
+- name: Get infra facts
+  include_tasks: infra_facts.yml
+
+- name: Get security facts
+  include_tasks: security_facts.yml
+
+- fail:
+    msg: "Stop here"
+
+- name: Deploy bootstrap Cloudformation stack
+  delegate_to: localhost
+  amazon.aws.cloudformation:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    #ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    stack_name: "{{ bootstrap_stack_name }}"
+    state: present
+    disable_rollback: true
+    create_timeout: 5
+    template: "../cloudformation/c2s/bootstrap.yaml"
+    template_parameters:
+      ClusterName: "{{ ocp_cluster_name }}"
+      InfrastructureName: "{{ infrastructure_id }}"
+      RhcosAmi: "{{ rhcos_ami[rhcos_ver] }}"
+      AllowedBootstrapCidr: '0.0.0.0/0'
+      PublicSubnet: "{{ subnets[0].id }}"
+      MasterSecurityGroupId: "{{ ec2_sg.master.id }}"
+      VpcId: "{{ vpc_id }}"
+      BootstrapIgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
+      InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
+      InternalServiceTragetGroupArn: "{{ internap_service_target_group_arn }}"
+      BootstrapInstanceProfileName: "{{ ec2_iam_role.bootstrap }}"
+      IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
+  register: bootstrap_stack_outputs
+  tags:
+    - bootstrap
+
+#- name: Show bootstrap stack output
+#  debug:
+#    var: bootstrap_stack_outputs
+#  tags:
+#    - bootstrap
+
+# Ansible task for this doesn't work correctly in C2S do to some api version error
+# This has not been combined with the loop below for the control plane to allow independent deployment of the boostrap node
+- name: Add bootstrap node to the api target group
+  delegate_to: localhost
+  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ bootstrap_strap_outputs.stack_outputs.BootstrapPrivateIp }}"}'
+  tags:
+    - bootstrap
+
+# Ansible task for this doesn't work correctly in C2S do to some api version error
+# This has not been combined with the loop below for the control plane to allow independent deployment of the boostrap node
+- name: Add bootstra node to the service api taget group
+  delegate_to: localhost
+  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ bootstrap_strap_outputs.stack_outputs.BootstrapPrivateIp }}"}'
+  tags:
+    - bootstrap
