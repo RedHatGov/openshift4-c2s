@@ -18,11 +18,11 @@
     state: directory
     mode: 0700
 
-- name: Generate SSH keypair for cluster nodes
-  openssh_keypair:
-   path: "{{ ssh_key_file }}"
-   size: 4096
-   state: present
+#- name: Generate SSH keypair for cluster nodes
+#  openssh_keypair:
+#   path: "{{ ssh_key_file }}"
+#   size: 4096
+#   state: present
 
 - name: Fetch public key
   slurp:
@@ -147,6 +147,7 @@
 #    regexp: 'upstream:.*'
 #    replace: 'upstream: http://localhost:8080/graph'
 
+# There's a BZ to fix this coming in something like 4.12
 - name: Remove default cloud provider config
   file:
     path: "{{ ignition_configs }}/manifests/cloud-provider-config.yaml"
@@ -179,6 +180,7 @@
     aws_session_token: "{{ lookup('env', 'AWS_SESSION_TOKEN') }}"
   when:
     - (platform is match("aws"))
+    - (ansible_env.AWS_SESSION_TOKEN is defined)
 
 - name: Remove existing cloud credentials config
   file:
