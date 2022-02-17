@@ -1,5 +1,20 @@
 ---
 
+- name: Get vpc facts
+  include_tasks: vpc_facts.yml
+  when:
+    - (cloudformation_based | bool)
+
+- name: Get infra facts
+  include_tasks: infra_facts.yml
+  when:
+    - (cloudformation_based | bool)
+
+- name: Get security facts
+  include_tasks: security_facts.yml
+  when:
+    - (cloudformation_based | bool)
+
 - name: Deploy control plane Cloudformation stack
   delegate_to: localhost
   amazon.aws.cloudformation:
@@ -7,25 +22,27 @@
     aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
     security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
     region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
-    ec2_url: "{{ cloudformation_endpoint }}"
+    ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
     validate_certs: "{{ aws_ssl_enabled }}"
     stack_name: openshift4-control-plane
     state: present
     disable_rollback: true
-    create_timeout: 5
+    create_timeout: 10
     template: "../cloudformation/c2s/control_plane.yaml"
     template_parameters:
-      ClusterName: "{{ ocp_cluster_name }}"
+      #ClusterName: "{{ ocp_cluster_name }}"
       InfrastructureName: "{{ infrastructure_id }}"
-      RhcosAmi: "{{ rhcos_ami[rhcos_ver] }}"
-      Master0Subnet: "{{ subnets[0].id }}"
-      Master1Subnet: "{{ subnets[1].id }}"
-      Master2Subnet: "{{ subnets[2].id }}"
-      IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
-      InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
-      InternalServiceTargetGropArn: "{{ internap_service_target_group_arn }}"
-      MasterInstanceProfileName: "{{ ec2_iam_role.master }}"
-      IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
+      RhcosAmi: "ami-02c8d3069da232774"
+      Master0Subnet: "{{ private_subnets[0].id }}"
+      Master1Subnet: "{{ private_subnets[1].id }}"
+      Master2Subnet: "{{ private_subnets[2].id }}"
+      IgnitionLocation: "https://{{ s3_bucket }}.s3.amazonaws.com/{{ s3_path }}/bootstrap.ign"
+      #InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
+      #InternalServiceTargetGropArn: "{{ internap_service_target_group_arn }}"
+      MasterInstanceProfileName: "{{ ec2_instance_profile.master }}"
+      MasterSecurityGroupId: "{{ ec2_sg.master.id }}"
+      IgnitionVersion: "3.2.0"
+      #CertificateAuthorities: ""
   register: master_stack_outputs
   tags:
     - masters
@@ -37,9 +54,9 @@
 #    - masters
 
 # Ansible task for this doesn't work correctly in C2S do to some api version error
-- name: Add control plane nodes to api target group
+- name: Add control plane nodes to api internal target group
   delegate_to: localhost
-  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ item }}"}'
+  shell: aws --no-verify-ssl elbv2 register-targets --target-group-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ item }}"}'
   loop:
     - "{{ master_stack_outputs.stack_outputs.Master0PrivateIp }}"
     - "{{ master_stack_outputs.stack_outputs.Master1PrivateIp }}"
@@ -50,10 +67,23 @@
 # Ansible task for this doesn't work correctly in C2S do to some api version error
 - name: Add control plane nodes to service target group
   delegate_to: localhost
-  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ item }}"}'
+  shell: aws --no-verify-ssl elbv2 register-targets --target-group-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ item }}"}'
   loop:
     - "{{ master_stack_outputs.stack_outputs.Master0PrivateIp }}"
     - "{{ master_stack_outputs.stack_outputs.Master1PrivateIp }}"
     - "{{ master_stack_outputs.stack_outputs.Master2PrivateIp }}"
+  tags:
+    - masters
+
+# Ansible task for this doesn't work correctly in C2S do to some api version error
+- name: Add control plane nodes to api external target group
+  delegate_to: localhost
+  shell: aws --no-verify-ssl elbv2 register-targets --target-group-arn "{{ external_api_target_group_arn }}" --targets '{"Id":"{{ item }}"}'
+  loop:
+    - "{{ master_stack_outputs.stack_outputs.Master0PrivateIp }}"
+    - "{{ master_stack_outputs.stack_outputs.Master1PrivateIp }}"
+    - "{{ master_stack_outputs.stack_outputs.Master2PrivateIp }}"
+  when:
+    (ocp_cluster_publish is match("External"))
   tags:
     - masters
