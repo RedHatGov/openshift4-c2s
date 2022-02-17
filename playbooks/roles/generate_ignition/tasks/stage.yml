@@ -1,24 +1,24 @@
 ---
 
-- name: Remove old ignition configs
+- name: Remove old ignition configs (HTTPD)
   become: true
   file:
     path: '{{ httpd_document_root }}/{{ ocp_cluster_name }}/ignition'
     state: absent
-  tags:
-    - ignition
+  when:
+    - (httpd_staging | bool)
 
-- name: Create Ignition staging location
+- name: Create Ignition staging location  (HTTPD)
   become: true
   file:
     path: '{{ httpd_document_root }}/{{ ocp_cluster_name }}/ignition'
     state: directory
     mode: '0755'
     setype: 'httpd_sys_content_t'
-  tags:
-    - ignition
+  when:
+    - (httpd_staging | bool)
 
-- name: Stage Ignition configs
+- name: Stage Ignition configs (HTTPD)
   become: true
   copy:
     src: "{{ item }}"
@@ -27,15 +27,36 @@
     setype: 'httpd_sys_content_t'
   with_fileglob:
     - '{{ ignition_configs }}/*.ign'
-  tags:
-    - ignition
+  when:
+    - (httpd_staging | bool)
 
-- name: Copy append-bootstrap ignition
+- name: Copy append-bootstrap ignition (HTTPD)
   become: true
   template:
     src: append-bootstrap.ign.j2
     dest: "{{ httpd_document_root }}/{{ ocp_cluster_name }}/ignition/append-bootstrap.ign"
     mode: 0664
     setype: 'httpd_sys_content_t'
-  tags:
-    - ignition
+  when:
+    - (httpd_staging | bool)
+
+- name: Stage Ignition configs (S3)
+  delegate_to: localhost
+  amazon.aws.aws_s3:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    #s3_url: "{{ s3_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    bucket: "{{ s3_bucket }}"
+    object: "{{ s3_path }}/{{ item }}"
+    src: "{{ ignition_configs }}/{{ item }}"
+    mode: put
+    permission: "public-read"
+  loop:
+    - 'bootstrap.ign'
+    - 'master.ign'
+    - 'worker.ign'
+  when:
+    - (s3_staging | bool)
