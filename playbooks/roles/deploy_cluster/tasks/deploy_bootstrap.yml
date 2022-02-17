@@ -2,15 +2,24 @@
 
 - name: Get vpc facts
   include_tasks: vpc_facts.yml
+  when:
+    - (cloudformation_based | bool)
 
 - name: Get infra facts
   include_tasks: infra_facts.yml
+  when:
+    - (cloudformation_based | bool)
 
 - name: Get security facts
   include_tasks: security_facts.yml
+  when:
+    - (cloudformation_based | bool)
 
-- fail:
-    msg: "Stop here"
+- debug:
+    var: internal_api_target_group_arn
+
+- debug:
+    var: internal_service_target_group_arn
 
 - name: Deploy bootstrap Cloudformation stack
   delegate_to: localhost
@@ -27,18 +36,20 @@
     create_timeout: 5
     template: "../cloudformation/c2s/bootstrap.yaml"
     template_parameters:
-      ClusterName: "{{ ocp_cluster_name }}"
+      #ClusterName: "{{ ocp_cluster_name }}"
       InfrastructureName: "{{ infrastructure_id }}"
-      RhcosAmi: "{{ rhcos_ami[rhcos_ver] }}"
-      AllowedBootstrapCidr: '0.0.0.0/0'
-      PublicSubnet: "{{ subnets[0].id }}"
+      #RhcosAmi: "{{ rhcos_ami[rhcos_ver] }}"
+      RhcosAmi: "ami-02c8d3069da232774"
+      AllowedBootstrapSshCidr: '0.0.0.0/0'
+      PublicSubnet: "{{ public_subnets[0].id }}"
       MasterSecurityGroupId: "{{ ec2_sg.master.id }}"
       VpcId: "{{ vpc_id }}"
-      BootstrapIgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
-      InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
-      InternalServiceTragetGroupArn: "{{ internap_service_target_group_arn }}"
-      BootstrapInstanceProfileName: "{{ ec2_iam_role.bootstrap }}"
-      IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
+      BootstrapIgnitionLocation: "https://{{ s3_bucket }}.s3.amazonaws.com/{{ s3_path }}/bootstrap.ign"
+      #InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
+      #InternalServiceTragetGroupArn: "{{ internal_service_target_group_arn }}"
+      #BootstrapInstanceProfileName: "{{ ec2_iam_role.master }}"
+      #IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
+      IgnitionVersion: '3.2.0'
   register: bootstrap_stack_outputs
   tags:
     - bootstrap
@@ -51,16 +62,26 @@
 
 # Ansible task for this doesn't work correctly in C2S do to some api version error
 # This has not been combined with the loop below for the control plane to allow independent deployment of the boostrap node
-- name: Add bootstrap node to the api target group
+- name: Add bootstrap node to the api internal target group
   delegate_to: localhost
-  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ bootstrap_strap_outputs.stack_outputs.BootstrapPrivateIp }}"}'
+  shell: aws --no-verify-ssl elbv2 register-targets --target-group-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ bootstrap_stack_outputs.stack_outputs.BootstrapPrivateIp }}"}'
   tags:
     - bootstrap
 
 # Ansible task for this doesn't work correctly in C2S do to some api version error
 # This has not been combined with the loop below for the control plane to allow independent deployment of the boostrap node
-- name: Add bootstra node to the service api taget group
+- name: Add bootstrap node to the service api taget group
   delegate_to: localhost
-  shell: aws --no-verify-ssl --endpoint-url "{{elb_endpoint}}" elbv2 register-targets --target-grou-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ bootstrap_strap_outputs.stack_outputs.BootstrapPrivateIp }}"}'
+  shell: aws --no-verify-ssl elbv2 register-targets --target-group-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ bootstrap_stack_outputs.stack_outputs.BootstrapPrivateIp }}"}'
+  tags:
+    - bootstrap
+
+# Ansible task for this doesn't work correctly in C2S do to some api version error
+# This has not been combined with the loop below for the control plane to allow independent deployment of the boostrap node
+- name: Add bootstrap node to the api external taget group
+  delegate_to: localhost
+  shell: aws --no-verify-ssl elbv2 register-targets --target-group-arn "{{ external_api_target_group_arn }}" --targets '{"Id":"{{ bootstrap_stack_outputs.stack_outputs.BootstrapPrivateIp }}"}'
+  when:
+    (ocp_cluster_publish is match("External"))
   tags:
     - bootstrap
