@@ -122,43 +122,21 @@ disk: 'xvda'
 #
 ##########################################################################################
 
-# 4.3 March 23, 2020 at 5:28:02 AM UTC-
-#ec2_ami: 'ami-0347efb61e552e57b'
+#rhcos_ami:
+#  '4.6.8':  'ami-01d4ce8cb7734d27b'
+#  '4.7.0':  'ami-0ccf438713c096327'
+#  '4.7.7':  'ami-0ccf438713c096327'
+#  '4.7.13': 'ami-0ccf438713c096327'
 
-# rhcos-45.82.202008010929-0
-#ec2_ami: 'ami-08f17f5bd2210c9fa'
+#ec2_endpoint: 'https://ec2.us-iso-east-1.c2s.ic.gov'
+#s3_endpoint: 'https://s3.us-iso-east-1.c2s.ic.gov'
+#route53_endpoint: 'https://route53.us-iso-east-1.c2s.ic.gov'
+#elb_endpoint: 'https://elasticloadbalancing.us-iso-east-1.c2s.ic.gov'
+#aws_ssl_enabled: false
 
-# 4.6.8
-#ec2_ami: 'ami-01d4ce8cb7734d27b'
-# 4.7.0
-#ec2_ami: 'ami-0ccf438713c096327'
+#combine: true
 
-rhcos_ami:
-  '4.6.8':  'ami-01d4ce8cb7734d27b'
-  '4.7.0':  'ami-0ccf438713c096327'
-  '4.7.7':  'ami-0ccf438713c096327'
-  '4.7.13': 'ami-0ccf438713c096327'
+#ec2_key_name: 'Combine'
 
-ec2_endpoint: 'https://ec2.us-iso-east-1.c2s.ic.gov'
-s3_endpoint: 'https://s3.us-iso-east-1.c2s.ic.gov'
-route53_endpoint: 'https://route53.us-iso-east-1.c2s.ic.gov'
-elb_endpoint: 'https://elasticloadbalancing.us-iso-east-1.c2s.ic.gov'
-aws_ssl_enabled: false
-
-combine: true
-
-ec2_key_name: 'Combine'
-
-vpc_id: 'vpc-'
-subnet_id: 'subnet-'
-
-openshift_aws:
-  bootstrap:
-    instance_type: 'i3.large'
-    root_vol_size: '50'
-  master:
-    instance_type: 'm5.xlarge'
-    root_vol_size: '50'
-  worker:
-    instance_type: 'm5.2xlarge'
-    root_vol_size: '50'
+#vpc_id: 'vpc-'
+#subnet_id: 'subnet-'
