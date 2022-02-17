@@ -13,26 +13,51 @@
     stack_resources: true
   register: sec_stack_outputs
 
-- debug:
-    var: sec_stack_outputs
+#- debug:
+#    var: sec_stack_outputs
 
 - name: Set IAM Role facts
   set_fact:
     ec2_iam_role:
-      bootstrap: ""
+#      bootstrap: ""
       master: "{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.MasterIamRole }}"
       worker: "{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.WorkerIamRole }}"
     ec2_instance_profile:
       master: "{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.MasterInstanceProfile }}"
       worker: "{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.WorkerInstanceProfile }}"
 
+- name: Get master security group info
+  delegate_to: localhost
+  amazon.aws.ec2_group_info:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    ec2_url: "{{ ec2_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    filters:
+      group-id: '{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.MasterSecurityGroup }}'
+  register: master_sg_info
+
+- name: Get worker security group info
+  delegate_to: localhost
+  amazon.aws.ec2_group_info:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    ec2_url: "{{ ec2_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    filters:
+      group-id: '{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.WorkerSecurityGroup }}'
+  register: worker_sg_info
+
 - name: Set security group facts
   set_fact:
     ec2_sg:
       master:
         id: '{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.MasterSecurityGroup }}'
-        name: ''
+        name: "{{ master_sg_info.security_groups[0].group_name }}"
       worker:
         id: '{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.WorkerSecurityGroup }}'
-        name: ''
-
+        name: "{{ worker_sg_info.security_groups[0].group_name}}"

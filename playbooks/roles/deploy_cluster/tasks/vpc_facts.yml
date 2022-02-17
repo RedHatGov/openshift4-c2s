@@ -7,12 +7,84 @@
     aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
     security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
     region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
-    #ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
+    ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
     validate_certs: "{{ aws_ssl_enabled }}"
     stack_name: "{{ vpc_stack_name }}"
     stack_resources: true
   register: cf_outputs
   failed_when: cf_outputs.cloudformation.openshift4vpc is undefined
+
+- name: Get private subnet 1 facts
+  delegate_to: localhost
+  amazon.aws.ec2_vpc_subnet_info:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    ec2_url: "{{ ec2_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    subnet_ids: '{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PrivateSubnet1 }}'
+  register: private_sub_1_info
+
+- name: Get private subnet 2 facts
+  delegate_to: localhost
+  amazon.aws.ec2_vpc_subnet_info:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    ec2_url: "{{ ec2_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    subnet_ids: '{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PrivateSubnet2 }}'
+  register: private_sub_2_info
+
+- name: Get private subnet 3 facts
+  delegate_to: localhost
+  amazon.aws.ec2_vpc_subnet_info:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    ec2_url: "{{ ec2_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    subnet_ids: '{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PrivateSubnet3 }}'
+  register: private_sub_3_info
+
+- name: Get public subnet 1 facts
+  delegate_to: localhost
+  amazon.aws.ec2_vpc_subnet_info:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    ec2_url: "{{ ec2_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    subnet_ids: '{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PublicSubnet1 }}'
+  register: public_sub_1_info
+
+- name: Get public subnet 2 facts
+  delegate_to: localhost
+  amazon.aws.ec2_vpc_subnet_info:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    ec2_url: "{{ ec2_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    subnet_ids: '{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PublicSubnet2 }}'
+  register: public_sub_2_info
+
+- name: Get public subnet 3 facts
+  delegate_to: localhost
+  amazon.aws.ec2_vpc_subnet_info:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    ec2_url: "{{ ec2_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    subnet_ids: '{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PublicSubnet3 }}'
+  register: public_sub_3_info
 
 - name: Set subnets to empty
   set_fact:
@@ -20,25 +92,25 @@
     ec2_public_subnets: "{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PublicSubnet1 }}"
     ec2_private_subnets: "{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PrivateSubnet1 }}"
     private_subnets:
-      - name: 'A'
+      - name: "{{ private_sub_1_info.subnets[0].tags['Name'] }}"
         id: '{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PrivateSubnet1 }}'
-        zone: 'A'
-      - name: 'B'
+        zone: '{{ private_sub_1_info.subnets[0].availability_zone }}'
+      - name: "{{ private_sub_2_info.subnets[0].tags['Name'] }}"
         id: '{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PrivateSubnet2 }}'
-        zone: 'B'
-      - name: 'C'
+        zone: '{{ private_sub_2_info.subnets[0].availability_zone }}'
+      - name: "{{ private_sub_3_info.subnets[0].tags['Name'] }}"
         id: '{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PrivateSubnet3 }}'
-        zone: 'C'
+        zone: '{{ private_sub_3_info.subnets[0].availability_zone }}'
     public_subnets:
-      - name: 'A'
+      - name: "{{ public_sub_1_info.subnets[0].tags['Name'] }}"
         id: '{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PublicSubnet1 }}'
-        zone: 'A'
-      - name: 'B'
+        zone: '{{ public_sub_1_info.subnets[0].availability_zone }}'
+      - name: "{{ public_sub_2_info.subnets[0].tags['Name'] }}"
         id: '{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PublicSubnet2 }}'
-        zone: 'B'
-      - name: 'C'
+        zone: '{{ public_sub_2_info.subnets[0].availability_zone }}'
+      - name: "{{ public_sub_3_info.subnets[0].tags['Name'] }}"
         id: '{{ cf_outputs.cloudformation.openshift4vpc.stack_resources.PublicSubnet3 }}'
-        zone: 'C'
+        zone: '{{ public_sub_3_info.subnets[0].availability_zone }}'
 
 - name: Add public subnet 2 if it exists
   set_fact:

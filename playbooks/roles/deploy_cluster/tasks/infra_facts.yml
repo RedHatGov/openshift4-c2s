@@ -19,6 +19,8 @@
 - name: Set external api target group arn
   set_fact:
     external_api_target_group_arn: "{{ network_stack_outputs.cloudformation.openshift4infra.stack_resources.ExternalApiTargetGroup }}"
+  when:
+    (ocp_cluster_publish is match("External"))
 
 - name: Set internal api target group arn
   set_fact:
@@ -26,4 +28,4 @@
 
 - name: Set inter service target group arn
   set_fact:
-    internap_service_target_group_arn: "{{ network_stack_outputs.cloudformation.openshift4infra.stack_resources.InternalServiceTargetGroup }}"
+    internal_service_target_group_arn: "{{ network_stack_outputs.cloudformation.openshift4infra.stack_resources.InternalServiceTargetGroup }}"
