@@ -20,14 +20,14 @@ Parameters:
       Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap.
     Type: AWS::EC2::Image::Id
 
-  AutoRegisterELB:
-    AllowedValues:
-      - "yes"
-      - "no"
-    Description: >-
-      Do you want to invoke NLB registration, which requires a Lambda ARN parameter?
-    Default: "yes"
-    Type: String
+#  AutoRegisterELB:
+#    AllowedValues:
+#      - "yes"
+#      - "no"
+#    Description: >-
+#      Do you want to invoke NLB registration, which requires a Lambda ARN parameter?
+#    Default: "yes"
+#    Type: String
 
   Master0Subnet:
     Description: >-
@@ -55,13 +55,18 @@ Parameters:
       https://api-int.$CLUSTER_NAME.$DOMAIN:22623/config/master
     Type: String
 
-  CertificateAuthorities:
+  IgnitionVersion:
     Description: >-
-      Base64 encoded certificate authority string to use, such as
-      data:text/plain;charset=utf-8;base64,ABC...xYz==. You should use the
-      value generated when creating the ignition config files using
-      `openshift-install create ignition-configs`.
+      Ignition version
     Type: String
+
+#  CertificateAuthorities:
+#    Description: >-
+#      Base64 encoded certificate authority string to use, such as
+#      data:text/plain;charset=utf-8;base64,ABC...xYz==. You should use the
+#      value generated when creating the ignition config files using
+#      `openshift-install create ignition-configs`.
+#    Type: String
 
   MasterInstanceProfileName:
     Description: >-
@@ -101,25 +106,25 @@ Parameters:
     Default: m5.xlarge
     Type: String
 
-  RegisterNlbIpTargetsLambdaArn:
-    Description: >-
-      ARN for NLB IP target registration lambda.
-    Type: String
+#  RegisterNlbIpTargetsLambdaArn:
+#    Description: >-
+#      ARN for NLB IP target registration lambda.
+#    Type: String
 
-  ExternalApiTargetGroupArn:
-    Description: >-
-      ARN for external API load balancer target group.
-    Type: String
+#  ExternalApiTargetGroupArn:
+#    Description: >-
+#      ARN for external API load balancer target group.
+#    Type: String
 
-  InternalApiTargetGroupArn:
-    Description: >-
-      ARN for internal API load balancer target group.
-    Type: String
+#  InternalApiTargetGroupArn:
+#    Description: >-
+#      ARN for internal API load balancer target group.
+#    Type: String
 
-  InternalServiceTargetGroupArn:
-    Description: >-
-      ARN for internal service load balancer target group.
-    Type: String
+#  InternalServiceTargetGroupArn:
+#    Description: >-
+#      ARN for internal service load balancer target group.
+#    Type: String
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -134,7 +139,8 @@ Metadata:
           - MasterInstanceType
           - RhcosAmi
           - IgnitionLocation
-          - CertificateAuthorities
+          - IgnitionVersion
+#          - CertificateAuthorities
           - MasterSecurityGroupId
           - MasterInstanceProfileName
       - Label:
@@ -145,14 +151,14 @@ Metadata:
           - Master0Subnet
           - Master1Subnet
           - Master2Subnet
-      - Label:
-          default: "Load Balancer Automation"
-        Parameters:
-          - AutoRegisterELB
-          - RegisterNlbIpTargetsLambdaArn
-          - ExternalApiTargetGroupArn
-          - InternalApiTargetGroupArn
-          - InternalServiceTargetGroupArn
+#      - Label:
+#          default: "Load Balancer Automation"
+#        Parameters:
+#          - AutoRegisterELB
+#          - RegisterNlbIpTargetsLambdaArn
+#          - ExternalApiTargetGroupArn
+#          - InternalApiTargetGroupArn
+#          - InternalServiceTargetGroupArn
     ParameterLabels:
       InfrastructureName:
         default: "Infrastructure Name"
@@ -170,17 +176,19 @@ Metadata:
         default: "Master Instance Profile Name"
       RhcosAmi:
         default: "Red Hat Enterprise Linux CoreOS AMI ID"
-      BootstrapIgnitionLocation:
+      IgnitionLocation:
         default: "Master Ignition Source"
-      CertificateAuthorities:
-        default: "Ignition CA String"
+      IgnitionVersion:
+        default: "Ignition version number"
+#      CertificateAuthorities:
+#        default: "Ignition CA String"
       MasterSecurityGroupId:
         default: "Master Security Group ID"
       AutoRegisterELB:
         default: "Use Provided ELB Automation"
 
-Conditions:
-  DoRegistration: !Equals ["yes", !Ref AutoRegisterELB]
+#Conditions:
+#  DoRegistration: !Equals ["yes", !Ref AutoRegisterELB]
 
 Resources:
   Master0:
@@ -202,10 +210,10 @@ Resources:
           SubnetId: !Ref "Master0Subnet"
       UserData:
         Fn::Base64: !Sub [
-          '{"ignition":{"config":{"append":[{"source":"${Source}","verification":{}}]},"security":{"tls":{"certificateAuthorities":[{"source":"${CaBundle}","verification":{}}]}},"timeouts":{},"version":"3.1.0"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
+          '{"ignition":{"config":{"append":[{"source":"${Source}","verification":{}}]},"security":{},"timeouts":{},"version":"${IGN_VER}"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
           {
             Source: !Ref IgnitionLocation,
-            CaBundle: !Ref CertificateAuthorities
+            IGN_VER: !Ref IgnitionVersion
           }
         ]
       Tags:
@@ -214,29 +222,29 @@ Resources:
         - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
           Value: "owned"
 
-  RegisterMaster0:
-    Condition: DoRegistration
-    Type: Custom::NLBRegister
-    Properties:
-      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-      TargetArn: !Ref ExternalApiTargetGroupArn
-      TargetIp: !GetAtt Master0.PrivateIp
+#  RegisterMaster0:
+#    Condition: DoRegistration
+#    Type: Custom::NLBRegister
+#    Properties:
+#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+#      TargetArn: !Ref ExternalApiTargetGroupArn
+#      TargetIp: !GetAtt Master0.PrivateIp
 
-  RegisterMaster0InternalApiTarget:
-    Condition: DoRegistration
-    Type: Custom::NLBRegister
-    Properties:
-      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-      TargetArn: !Ref InternalApiTargetGroupArn
-      TargetIp: !GetAtt Master0.PrivateIp
+#  RegisterMaster0InternalApiTarget:
+#    Condition: DoRegistration
+#    Type: Custom::NLBRegister
+#    Properties:
+#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+#      TargetArn: !Ref InternalApiTargetGroupArn
+#      TargetIp: !GetAtt Master0.PrivateIp
 
-  RegisterMaster0InternalServiceTarget:
-    Condition: DoRegistration
-    Type: Custom::NLBRegister
-    Properties:
-      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-      TargetArn: !Ref InternalServiceTargetGroupArn
-      TargetIp: !GetAtt Master0.PrivateIp
+#  RegisterMaster0InternalServiceTarget:
+#    Condition: DoRegistration
+#    Type: Custom::NLBRegister
+#    Properties:
+#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+#      TargetArn: !Ref InternalServiceTargetGroupArn
+#      TargetIp: !GetAtt Master0.PrivateIp
 
   Master1:
     Type: AWS::EC2::Instance
@@ -257,10 +265,10 @@ Resources:
           SubnetId: !Ref "Master1Subnet"
       UserData:
         Fn::Base64: !Sub [
-          '{"ignition":{"config":{"append":[{"source":"${Source}","verification":{}}]},"security":{"tls":{"certificateAuthorities":[{"source":"${CaBundle}","verification":{}}]}},"timeouts":{},"version":"3.1.0"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
+          '{"ignition":{"config":{"append":[{"source":"${Source}","verification":{}}]},"security":{},"timeouts":{},"version":"${IGN_VER}"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
           {
             Source: !Ref IgnitionLocation,
-            CaBundle: !Ref CertificateAuthorities
+            IGN_VER: !Ref IgnitionVersion
           }
         ]
       Tags:
@@ -269,29 +277,29 @@ Resources:
         - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
           Value: "owned"
 
-  RegisterMaster1:
-    Condition: DoRegistration
-    Type: Custom::NLBRegister
-    Properties:
-      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-      TargetArn: !Ref ExternalApiTargetGroupArn
-      TargetIp: !GetAtt Master1.PrivateIp
+#  RegisterMaster1:
+#    Condition: DoRegistration
+#    Type: Custom::NLBRegister
+#    Properties:
+#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+#      TargetArn: !Ref ExternalApiTargetGroupArn
+#      TargetIp: !GetAtt Master1.PrivateIp
 
-  RegisterMaster1InternalApiTarget:
-    Condition: DoRegistration
-    Type: Custom::NLBRegister
-    Properties:
-      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-      TargetArn: !Ref InternalApiTargetGroupArn
-      TargetIp: !GetAtt Master1.PrivateIp
+#  RegisterMaster1InternalApiTarget:
+#    Condition: DoRegistration
+#    Type: Custom::NLBRegister
+#    Properties:
+#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+#      TargetArn: !Ref InternalApiTargetGroupArn
+#      TargetIp: !GetAtt Master1.PrivateIp
 
-  RegisterMaster1InternalServiceTarget:
-    Condition: DoRegistration
-    Type: Custom::NLBRegister
-    Properties:
-      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-      TargetArn: !Ref InternalServiceTargetGroupArn
-      TargetIp: !GetAtt Master1.PrivateIp
+#  RegisterMaster1InternalServiceTarget:
+#    Condition: DoRegistration
+#    Type: Custom::NLBRegister
+#    Properties:
+#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+#      TargetArn: !Ref InternalServiceTargetGroupArn
+#      TargetIp: !GetAtt Master1.PrivateIp
 
   Master2:
     Type: AWS::EC2::Instance
@@ -312,10 +320,10 @@ Resources:
           SubnetId: !Ref "Master2Subnet"
       UserData:
         Fn::Base64: !Sub [
-          '{"ignition":{"config":{"append":[{"source":"${Source}","verification":{}}]},"security":{"tls":{"certificateAuthorities":[{"source":"${CaBundle}","verification":{}}]}},"timeouts":{},"version":"3.1.0"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
+          '{"ignition":{"config":{"append":[{"source":"${Source}","verification":{}}]},"security":{},"timeouts":{},"version":"${IGN_VER}"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
           {
             Source: !Ref IgnitionLocation,
-            CaBundle: !Ref CertificateAuthorities
+            IGN_VER: !Ref IgnitionVersion
           }
         ]
       Tags:
@@ -324,39 +332,40 @@ Resources:
         - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
           Value: "owned"
 
-  RegisterMaster2:
-    Condition: DoRegistration
-    Type: Custom::NLBRegister
-    Properties:
-      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-      TargetArn: !Ref ExternalApiTargetGroupArn
-      TargetIp: !GetAtt Master2.PrivateIp
+#  RegisterMaster2:
+#    Condition: DoRegistration
+#    Type: Custom::NLBRegister
+#    Properties:
+#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+#      TargetArn: !Ref ExternalApiTargetGroupArn
+#      TargetIp: !GetAtt Master2.PrivateIp
 
-  RegisterMaster2InternalApiTarget:
-    Condition: DoRegistration
-    Type: Custom::NLBRegister
-    Properties:
-      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-      TargetArn: !Ref InternalApiTargetGroupArn
-      TargetIp: !GetAtt Master2.PrivateIp
+#  RegisterMaster2InternalApiTarget:
+#    Condition: DoRegistration
+#    Type: Custom::NLBRegister
+#    Properties:
+#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+#      TargetArn: !Ref InternalApiTargetGroupArn
+#      TargetIp: !GetAtt Master2.PrivateIp
 
-  RegisterMaster2InternalServiceTarget:
-    Condition: DoRegistration
-    Type: Custom::NLBRegister
-    Properties:
-      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-      TargetArn: !Ref InternalServiceTargetGroupArn
-      TargetIp: !GetAtt Master2.PrivateIp
+#  RegisterMaster2InternalServiceTarget:
+#    Condition: DoRegistration
+#    Type: Custom::NLBRegister
+#    Properties:
+#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+#      TargetArn: !Ref InternalServiceTargetGroupArn
+#      TargetIp: !GetAtt Master2.PrivateIp
 
 Outputs:
-  PrivateIPs:
-    Description: The control-plane node private IP addresses.
-    Value:
-      !Join [
-        ",",
-        [
-          !GetAtt Master0.PrivateIp,
-          !GetAtt Master1.PrivateIp,
-          !GetAtt Master2.PrivateIp
-        ]
-      ]
+
+  Master0PrivateIp:
+    Description: The master 0 node private IP address.
+    Value: !GetAtt Master0.PrivateIp
+
+  Master1PrivateIp:
+    Description: The master 1 node private IP address.
+    Value: !GetAtt Master1.PrivateIp
+
+  Master2PrivateIp:
+    Description: The master 2 node private IP address.
+    Value: !GetAtt Master2.PrivateIp

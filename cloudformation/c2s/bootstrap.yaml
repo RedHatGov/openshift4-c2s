@@ -49,6 +49,11 @@ Parameters:
       Ignition config file location. (Ex: s3://my-s3-bucket/bootstrap.ign)
     Type: String
 
+  IgnitionVersion:
+    Description: >-
+      Ignition version
+    Type: String
+
 #  AutoRegisterELB:
 #    AllowedValues:
 #      - "yes"
@@ -63,20 +68,20 @@ Parameters:
 #      ARN for NLB IP target registration lambda.
 #    Type: String
 
-  ExternalApiTargetGroupArn:
-    Description: >-
-      ARN for external API load balancer target group.
-    Type: String
+#  ExternalApiTargetGroupArn:
+#    Description: >-
+#      ARN for external API load balancer target group.
+#    Type: String
 
-  InternalApiTargetGroupArn:
-    Description: >-
-      ARN for internal API load balancer target group.
-    Type: String
+#  InternalApiTargetGroupArn:
+#    Description: >-
+#      ARN for internal API load balancer target group.
+#    Type: String
 
-  InternalServiceTargetGroupArn:
-    Description: >-
-      ARN for internal service load balancer target group.
-    Type: String
+#  InternalServiceTargetGroupArn:
+#    Description: >-
+#      ARN for internal service load balancer target group.
+#    Type: String
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -90,6 +95,7 @@ Metadata:
         Parameters:
           - RhcosAmi
           - BootstrapIgnitionLocation
+          - IgnitionVersion
           - MasterSecurityGroupId
       - Label:
           default: "Network Configuration"
@@ -97,14 +103,14 @@ Metadata:
           - VpcId
           - AllowedBootstrapSshCidr
           - PublicSubnet
-      - Label:
-          default: "Load Balancer Automation"
-        Parameters:
+#      - Label:
+#          default: "Load Balancer Automation"
+#        Parameters:
 #          - AutoRegisterELB
-          - RegisterNlbIpTargetsLambdaArn
-          - ExternalApiTargetGroupArn
-          - InternalApiTargetGroupArn
-          - InternalServiceTargetGroupArn
+#          - RegisterNlbIpTargetsLambdaArn
+#          - ExternalApiTargetGroupArn
+#          - InternalApiTargetGroupArn
+#          - InternalServiceTargetGroupArn
     ParameterLabels:
       InfrastructureName:
         default: "Infrastructure Name"
@@ -120,6 +126,8 @@ Metadata:
         default: "Bootstrap Ignition Source"
       MasterSecurityGroupId:
         default: "Master Security Group ID"
+      IgnitionVersion:
+        default: "Ignition Version"
 #      AutoRegisterELB:
 #        default: "Use Provided ELB Automation"
 
@@ -204,9 +212,10 @@ Resources:
           SubnetId: !Ref "PublicSubnet"
       UserData:
         Fn::Base64: !Sub [
-          '{"ignition":{"config":{"replace":{"source":"${S3Loc}","verification":{}}},"timeouts":{},"version":"3.1.0"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
+          '{"ignition":{"config":{"replace":{"source":"${S3Loc}","verification":{}}},"timeouts":{},"version":"${IGN_VER}"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
           {
-            S3Loc: !Ref BootstrapIgnitionLocation
+            S3Loc: !Ref BootstrapIgnitionLocation,
+            IGN_VER: !Ref IgnitionVersion
           }
         ]
       Tags:
