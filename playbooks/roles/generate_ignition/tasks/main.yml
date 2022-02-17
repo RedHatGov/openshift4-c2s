@@ -122,9 +122,9 @@
 - name: Create manifests
   shell: "{{ openshift_install }} create manifests --dir={{ ignition_configs }}"
 
-- name: Stop after creating manifests
-  fail:
-    msg: "Stop after creating manifests"
+#- name: Stop after creating manifests
+#  fail:
+#    msg: "Stop after creating manifests"
 
 - name: Set masters to unschedulable
   replace:
@@ -326,29 +326,29 @@
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
 
-- name: Change subnet 0 name
+- name: Change private subnet 0 name
   ansible.builtin.replace:
     path: "{{ item }}"
-    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-private-{{subnets[0].zone}}"
-    replace: "{{ subnets[0].name }}"
+    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-private-{{private_subnets[0].zone}}"
+    replace: "{{ private_subnets[0].name }}"
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
 
-- name: Change subnet 1 name
+- name: Change private subnet 1 name
   ansible.builtin.replace:
     path: "{{ item }}"
-    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-private-{{subnets[1].zone}}"
-    replace: "{{ subnets[1].name }}"
+    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-private-{{private_subnets[1].zone}}"
+    replace: "{{ private_subnets[1].name }}"
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
 
-- name: Change subnet 2 name
+- name: Change private subnet 2 name
   ansible.builtin.replace:
     path: "{{ item }}"
-    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-private-{{subnets[2].zone}}"
-    replace: "{{ subnets[2].name }}"
+    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-private-{{private_subnets[2].zone}}"
+    replace: "{{ private_subnets[2].name }}"
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
