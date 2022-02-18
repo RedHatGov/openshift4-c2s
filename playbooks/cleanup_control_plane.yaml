@@ -1,0 +1,11 @@
+---
+
+- hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+
+    - name: Destroy OpenShift4 Control Plane
+      import_role:
+        name: cleanup_cluster
+        tasks_from: cleanup_control_plane.yml
