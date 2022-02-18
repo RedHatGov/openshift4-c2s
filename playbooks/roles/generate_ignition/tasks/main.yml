@@ -359,16 +359,16 @@
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
 
-- name: Remove default Ingress Controller config
-  file:
-    path: "{{ ignition_configs }}/manifests/cluster-ingress-default-ingresscontroller.yaml"
-    state: absent
+#- name: Remove default Ingress Controller config
+#  file:
+#    path: "{{ ignition_configs }}/manifests/cluster-ingress-default-ingresscontroller.yaml"
+#    state: absent
 
-- name: Configure Ingress Controller for HostNetwork
-  template:
-    src: cluster-ingress-default-ingresscontroller-hostnetwork.yaml.j2
-    dest: "{{ ignition_configs }}/manifests/cluster-ingress-default-ingresscontroller.yaml"
-    mode: 0644
+#- name: Configure Ingress Controller for HostNetwork
+#  template:
+#    src: cluster-ingress-default-ingresscontroller-hostnetwork.yaml.j2
+#    dest: "{{ ignition_configs }}/manifests/cluster-ingress-default-ingresscontroller.yaml"
+#    mode: 0644
 
 #- name: Configure Ingress Controller for Classic Load Balancer
 #  template:
