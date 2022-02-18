@@ -210,9 +210,9 @@ Resources:
           SubnetId: !Ref "Master0Subnet"
       UserData:
         Fn::Base64: !Sub [
-          '{"ignition":{"config":{"append":[{"source":"${Source}","verification":{}}]},"security":{},"timeouts":{},"version":"${IGN_VER}"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
+          '{"ignition":{"config":{"replace":{"source":"${S3Loc}","verification":{}}},"timeouts":{},"version":"${IGN_VER}"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
           {
-            Source: !Ref IgnitionLocation,
+            S3Loc: !Ref IgnitionLocation,
             IGN_VER: !Ref IgnitionVersion
           }
         ]
@@ -265,9 +265,9 @@ Resources:
           SubnetId: !Ref "Master1Subnet"
       UserData:
         Fn::Base64: !Sub [
-          '{"ignition":{"config":{"append":[{"source":"${Source}","verification":{}}]},"security":{},"timeouts":{},"version":"${IGN_VER}"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
+          '{"ignition":{"config":{"replace":{"source":"${S3Loc}","verification":{}}},"timeouts":{},"version":"${IGN_VER}"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
           {
-            Source: !Ref IgnitionLocation,
+            S3Loc: !Ref IgnitionLocation,
             IGN_VER: !Ref IgnitionVersion
           }
         ]
@@ -320,9 +320,9 @@ Resources:
           SubnetId: !Ref "Master2Subnet"
       UserData:
         Fn::Base64: !Sub [
-          '{"ignition":{"config":{"append":[{"source":"${Source}","verification":{}}]},"security":{},"timeouts":{},"version":"${IGN_VER}"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
+          '{"ignition":{"config":{"replace":{"source":"${S3Loc}","verification":{}}},"timeouts":{},"version":"${IGN_VER}"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}',
           {
-            Source: !Ref IgnitionLocation,
+            S3Loc: !Ref IgnitionLocation,
             IGN_VER: !Ref IgnitionVersion
           }
         ]
