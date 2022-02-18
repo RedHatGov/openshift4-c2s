@@ -14,15 +14,19 @@
 
 - name: Create path for SSH Keys
   file:
-    path: "{{ ansible_env.HOME }}/.ssh"
+    path: "{{ ssh_key_file | dirname }}"
     state: directory
     mode: 0700
 
-#- name: Generate SSH keypair for cluster nodes
-#  openssh_keypair:
-#   path: "{{ ssh_key_file }}"
-#   size: 4096
-#   state: present
+# TODO: get public key from the return of this task.
+#       not sure if it works even when the key already exists
+- name: Generate SSH keypair for cluster nodes
+  community.crypto.openssh_keypair:
+   path: "{{ ssh_key_file }}"
+   size: 4096
+   type: rsa
+   force: false
+   state: present
 
 - name: Fetch public key
   slurp:
@@ -154,6 +158,7 @@
     state: absent
   when:
     - (platform is match("aws"))
+    - (ansible_env.AWS_DEFAULT_REGION is match("us-iso-east-1"))
 
 - name: Copy new cloud provider config
   template:
@@ -162,6 +167,7 @@
     mode: 0644
   when:
     - (platform is match("aws"))
+    - (ansible_env.AWS_DEFAULT_REGION is match("us-iso-east-1"))
 
 - name: Set access key fact
   set_fact:
@@ -188,6 +194,7 @@
     state: absent
   when:
     - (platform is match("aws"))
+    - (ansible_env.AWS_DEFAULT_REGION is match("us-iso-east-1"))
   with_items:
     - '99_cloud-creds-secret.yaml'
     - '99_aws-ebs-csi-driver-operator-secret.yaml'
@@ -203,6 +210,7 @@
     mode: 0644
   when:
     - (platform is match("aws"))
+    - (ansible_env.AWS_DEFAULT_REGION is match("us-iso-east-1"))
   with_items:
     - '99_cloud-creds-secret.yaml'
     - '99_aws-ebs-csi-driver-operator-secret.yaml'
@@ -245,7 +253,7 @@
 #  when: ( combine | bool )
 
 - name: Slurp json state
-  shell: grep -A 2 'ClusterID' {{ ignition_configs }}/.openshift_install_state.json | grep InfraID | awk '{print $2}' | tr -d '"' | awk -F\- '{print $NF}'
+  shell: grep -A 2 'ClusterID' {{ ignition_configs }}/.openshift_install_state.json | grep InfraID | awk '{print $2}' | tr -d '"'
   register: cluster_state
 
 - name: Set cluster infra name
@@ -269,8 +277,8 @@
 - name: Change worker iam profile name
   ansible.builtin.replace:
     path: "{{ item }}"
-    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-worker-profile"
-    replace: "{{ ec2_iam_role.worker }}"
+    regexp: "{{infrastructure_id}}-worker-profile"
+    replace: "{{ ec2_instance_profile.worker }}"
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
@@ -280,8 +288,8 @@
 - name: Change master iam profile name
   ansible.builtin.replace:
     path: "{{ item }}"
-    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-master-profile"
-    replace: "{{ ec2_iam_role.master }}"
+    regexp: "{{infrastructure_id}}-master-profile"
+    replace: "{{ ec2_instance_profile.master }}"
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
@@ -291,7 +299,7 @@
 - name: Change master security group from the default pattern
   ansible.builtin.replace:
     path: "{{ item }}"
-    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-master-sg"
+    regexp: "{{infrastructure_id}}-master-sg"
     replace: "{{ ec2_sg.master.name }}"
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
@@ -300,36 +308,34 @@
 - name: Change the worker security group from the default pattern
   ansible.builtin.replace:
     path: "{{ item }}"
-    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-worker-sg"
+    regexp: "{{infrastructure_id}}-worker-sg"
     replace: "{{ ec2_sg.worker.name }}"
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
-#  when: 
-#    - ec2_iam_role.worker is defined
 
-- name: Change master machine set internal LB name
-  ansible.builtin.replace:
-    path: "{{ item }}"
-    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-int"
-    replace: "{{infrastructure_id}}-int"
-  with_fileglob:
-    - '{{ ignition_configs }}/manifests/*.y*ml'
-    - '{{ ignition_configs }}/openshift/*.y*ml'
+#- name: Change master machine set internal LB name
+#  ansible.builtin.replace:
+#    path: "{{ item }}"
+#    regexp: "{{infrastructure_id}}-int"
+#    replace: "{{infrastructure_id}}-int"
+#  with_fileglob:
+#    - '{{ ignition_configs }}/manifests/*.y*ml'
+#    - '{{ ignition_configs }}/openshift/*.y*ml'
 
-- name: Change master machine set internal LB name
-  ansible.builtin.replace:
-    path: "{{ item }}"
-    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-ext"
-    replace: "{{infrastructure_id}}-ext"
-  with_fileglob:
-    - '{{ ignition_configs }}/manifests/*.y*ml'
-    - '{{ ignition_configs }}/openshift/*.y*ml'
+#- name: Change master machine set internal LB name
+#  ansible.builtin.replace:
+#    path: "{{ item }}"
+#    regexp: "{{infrastructure_id}}-ext"
+#    replace: "{{infrastructure_id}}-ext"
+#  with_fileglob:
+#    - '{{ ignition_configs }}/manifests/*.y*ml'
+#    - '{{ ignition_configs }}/openshift/*.y*ml'
 
 - name: Change private subnet 0 name
   ansible.builtin.replace:
     path: "{{ item }}"
-    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-private-{{private_subnets[0].zone}}"
+    regexp: "{{infrastructure_id}}-private-{{private_subnets[0].zone}}"
     replace: "{{ private_subnets[0].name }}"
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
@@ -338,7 +344,7 @@
 - name: Change private subnet 1 name
   ansible.builtin.replace:
     path: "{{ item }}"
-    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-private-{{private_subnets[1].zone}}"
+    regexp: "{{infrastructure_id}}-private-{{private_subnets[1].zone}}"
     replace: "{{ private_subnets[1].name }}"
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
@@ -347,7 +353,7 @@
 - name: Change private subnet 2 name
   ansible.builtin.replace:
     path: "{{ item }}"
-    regexp: "{{ocp_cluster_name}}-{{infrastructure_id}}-private-{{private_subnets[2].zone}}"
+    regexp: "{{infrastructure_id}}-private-{{private_subnets[2].zone}}"
     replace: "{{ private_subnets[2].name }}"
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
