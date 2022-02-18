@@ -24,7 +24,7 @@
     region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
     ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
     validate_certs: "{{ aws_ssl_enabled }}"
-    stack_name: openshift4-control-plane
+    stack_name: "{{ cp_stack_name }}"
     state: present
     disable_rollback: true
     create_timeout: 10
@@ -36,7 +36,7 @@
       Master0Subnet: "{{ private_subnets[0].id }}"
       Master1Subnet: "{{ private_subnets[1].id }}"
       Master2Subnet: "{{ private_subnets[2].id }}"
-      IgnitionLocation: "https://{{ s3_bucket }}.s3.amazonaws.com/{{ s3_path }}/bootstrap.ign"
+      IgnitionLocation: "https://{{ s3_bucket }}.s3.amazonaws.com/{{ s3_path }}/master.ign"
       #InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
       #InternalServiceTargetGropArn: "{{ internap_service_target_group_arn }}"
       MasterInstanceProfileName: "{{ ec2_instance_profile.master }}"
