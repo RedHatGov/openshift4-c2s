@@ -54,6 +54,7 @@
     src: "{{ ignition_configs }}/{{ item }}"
     mode: put
     permission: "public-read"
+    overwrite: "always"
   loop:
     - 'bootstrap.ign'
     - 'master.ign'
