@@ -1,6 +1,36 @@
 ---
 # tasks file for generate_ignition
 
+- name: Check if AMI ID set for ISO regions
+  fail:
+    msg: "AMI ID required for ISO regions"
+  when:
+    - ansible_env.AWS_DEFAULT_REGION is search("iso")
+
+# Will only run in non-iso regions. Above task will stop for ISO regions
+- name: Get AMI ID if not set
+  shell: |
+    {{ openshift_install }} coreos print-stream-json | jq -r '.architectures.x86_64.images.aws[]."{{ ansible_env.AWS_DEFAULT_REGION }}".image'
+  register: rhcos_image_info
+  when:
+    - rhcos_ami is not defined
+
+- name: Set RHCOS AMI ID
+  set_fact:
+    rhcos_ami: "{{ rhcos_image_info.stdout }}"
+
+# Task will fail if the AMI is not present, cannot be found, or var has bad input
+- name: gather information about an AMI using ami-id
+  amazon.aws.ec2_ami_info:
+    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+    ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
+    validate_certs: "{{ aws_ssl_enabled }}"
+    image_ids: "{{ rhcos_ami }}"
+  register: aws_ami_info
+
 - name: Remove existing ignition configs
   file:
     path: "{{ ignition_configs }}"
@@ -135,6 +165,16 @@
     path: "{{ ignition_configs }}/manifests/cluster-scheduler-02-config.yml"
     regexp: 'mastersSchedulable: true'
     replace: 'mastersSchedulable: false'
+  when:
+    -  (not master_scheduleable)
+
+- name: Set masters to schedulable
+  replace:
+    path: "{{ ignition_configs }}/manifests/cluster-scheduler-02-config.yml"
+    regexp: 'mastersSchedulable: false'
+    replace: 'mastersSchedulable: true'
+  when:
+    -  (master_scheduleable)
 
 # TODO: This might not be needed anymore
 #- name: Set cluster upgrade channel
@@ -283,7 +323,8 @@
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
   when:
-    - ec2_iam_role.worker is defined
+    - (platform is match("aws"))
+    - ec2_instance_profile.worker is defined
 
 - name: Change master iam profile name
   ansible.builtin.replace:
@@ -294,7 +335,8 @@
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
   when: 
-    - ec2_iam_role.master is defined
+    - (platform is match("aws"))
+    - ec2_instance_profile.master is defined
 
 - name: Change master security group from the default pattern
   ansible.builtin.replace:
@@ -304,6 +346,9 @@
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
+  when:
+    - (platform is match("aws"))
+    - (ec2_sg.master.name is defined)
 
 - name: Change the worker security group from the default pattern
   ansible.builtin.replace:
@@ -313,6 +358,9 @@
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
+  when:
+    - (platform is match("aws"))
+    - (ec2_sg.worker.name is defined)
 
 #- name: Change master machine set internal LB name
 #  ansible.builtin.replace:
@@ -340,6 +388,9 @@
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
+  when:
+    - (platform is match("aws"))
+    - (private_subnets[0].name is defined)
 
 - name: Change private subnet 1 name
   ansible.builtin.replace:
@@ -349,6 +400,9 @@
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
+  when:
+    - (platform is match("aws"))
+    - (private_subnets[1].name is defined)
 
 - name: Change private subnet 2 name
   ansible.builtin.replace:
@@ -358,6 +412,9 @@
   with_fileglob:
     - '{{ ignition_configs }}/manifests/*.y*ml'
     - '{{ ignition_configs }}/openshift/*.y*ml'
+  when:
+    - (platform is match("aws"))
+    - (private_subnets[2].name is defined)
 
 #- name: Remove default Ingress Controller config
 #  file:
@@ -397,9 +454,9 @@
   when:
     - (platform is match("aws") and ansible_env.AWS_DEFAULT_REGION is match("us-iso-east-1"))
 
-#- name: Stop before generating ignition configs
-#  fail:
-#    msg: "Stop before generating ignition configs"
+- name: Stop before generating ignition configs
+  fail:
+    msg: "Stop before generating ignition configs"
 
 - name: Create ignition configs
   shell: "{{ openshift_install }} create ignition-configs --dir={{ ignition_configs }}"
