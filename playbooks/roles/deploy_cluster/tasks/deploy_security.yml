@@ -2,6 +2,20 @@
 
 - name: Get vpc facts
   include_tasks: vpc_facts.yml
+  when:
+    - not (existing_vpc | bool)
+
+- name: Ensure vpc_id is defined
+  fail:
+    msg: "vpc_id must be defined"
+  when:
+    - vpc_id is not defined
+
+- name: Ensure vpc_cidr is defined
+  fail:
+    msg: "vpc_cidr must be defined"
+  when:
+    - vpc_cidr is not defined
 
 - name: Deploy OCP Security Cloudformation stack
   delegate_to: localhost
@@ -10,7 +24,7 @@
     aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
     security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
     region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
-    #ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
+    ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
     validate_certs: "{{ aws_ssl_enabled }}"
     stack_name: "{{ security_stack_name }}"
     state: present
@@ -19,7 +33,9 @@
     template: "{{ playbook_dir }}/../cloudformation/c2s/security.yaml"
     template_parameters:
       InfrastructureName: "{{ infrastructure_id }}"
-      VpcCidr: "{{ vpc_cidr | default(omit) }}"
-      VpcId: "{{ cf_outputs.cloudformation.openshift4vpc.stack_outputs.VpcId }}"
+      VpcCidr: "{{ vpc_cidr }}"
+      VpcId: "{{ vpc_id }}"
       PrivateSubnets: "{{ ec2_private_subnets }}"
   register: sec_stack_outputs
+  when:
+    - cloudformation_based | bool
