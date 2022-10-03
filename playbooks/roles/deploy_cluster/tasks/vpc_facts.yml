@@ -12,7 +12,12 @@
     stack_name: "{{ vpc_stack_name }}"
     stack_resources: true
   register: cf_outputs
-  failed_when: cf_outputs.cloudformation.openshift4vpc is undefined
+#  failed_when: cf_outputs.cloudformation.openshift4vpc is undefined
+
+- name: Set vpc_id fact
+  set_fact:
+    vpc_id: "{{ cf_outputs.cloudformation.openshift4vpc.stack_outputs.VpcId }}"
+    vpc_cidr: "{{ cf_outputs.cloudformation.openshift4vpc.stack_outputs.VpcCidr }}"
 
 - name: Get private subnet 1 facts
   delegate_to: localhost
