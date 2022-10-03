@@ -49,6 +49,24 @@ Parameters:
       The internal subnets.
     Type: List<AWS::EC2::Subnet::Id>
 
+  Route53Enabled:
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: >-
+      Should the cluster be configured to use Route53 for DNS?
+    Default: "true"
+    Type: String
+
+  Publish:
+    AllowedValues:
+      - "Internal"
+      - "External"
+    Description: >-
+      Should the cluster be accessible from outside the VPC?
+    Default: "External"
+    Type: String
+
   VpcId:
     Description: >-
       The VPC-scoped resources will belong to this VPC.
@@ -65,12 +83,14 @@ Metadata:
       - Label:
           default: "Network Configuration"
         Parameters:
+          - Publish
           - VpcId
           - PublicSubnets
           - PrivateSubnets
       - Label:
           default: "DNS"
         Parameters:
+          - Route53Enabled
           - HostedZoneName
           - HostedZoneId
     ParameterLabels:
@@ -78,6 +98,8 @@ Metadata:
         default: "Cluster Name"
       InfrastructureName:
         default: "Infrastructure Name"
+      Publish:
+        default: "Publish External"
       VpcId:
         default: "VPC ID"
       PublicSubnets:
@@ -88,11 +110,17 @@ Metadata:
         default: "Public Hosted Zone Name"
       HostedZoneId:
         default: "Public Hosted Zone ID"
+      Route53Enabled:
+        default: "Use Route53 DNS"
 
-# TODO: Need a conditional on creating a route53 zone
+Conditions:
+  DoRoute53: !Equals ["true", !Ref Route53Enabled]
+  DoExternal: !Equals ["External", !Ref Publish]
+  DoExternalRoute53: !And [!Equals ["true", !Ref Route53Enabled], !Equals ["External", !Ref Publish]]
 
 Resources:
   ExtApiElb:
+    Condition: DoExternal
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       Name: !Join ["-", [!Ref InfrastructureName, "ext"]]
@@ -120,6 +148,7 @@ Resources:
           Value: owned
 
   IntDns:
+    Condition: DoRoute53
     Type: "AWS::Route53::HostedZone"
     Properties:
       HostedZoneConfig:
@@ -135,6 +164,7 @@ Resources:
           Value: "owned"
 
   ExternalApiServerRecord:
+    Condition: DoExternalRoute53
     Type: AWS::Route53::RecordSetGroup
     Properties:
       Comment: Alias record for the API server
@@ -155,6 +185,7 @@ Resources:
             DNSName: !GetAtt ExtApiElb.DNSName
 
   InternalApiServerRecord:
+    Condition: DoRoute53
     Type: AWS::Route53::RecordSetGroup
     Properties:
       Comment: Alias record for the API server
@@ -188,6 +219,7 @@ Resources:
             DNSName: !GetAtt IntApiElb.DNSName
 
   ExternalApiListener:
+    Condition: DoExternal
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
@@ -200,6 +232,7 @@ Resources:
       Protocol: TCP
 
   ExternalApiTargetGroup:
+    Condition: DoExternal
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Name: !Join ["-", [!Ref InfrastructureName, "aext"]]
@@ -282,9 +315,9 @@ Outputs:
     Description: Hosted zone ID for the private DNS.
     Value: !Ref IntDns
 
-  ExternalApiLoadBalancerName:
-    Description: Full name of the external API load balancer.
-    Value: !GetAtt ExtApiElb.LoadBalancerFullName
+#  ExternalApiLoadBalancerName:
+#    Description: Full name of the external API load balancer.
+#    Value: !GetAtt ExtApiElb.LoadBalancerFullName
 
   InternalApiLoadBalancerName:
     Description: Full name of the internal API load balancer.
@@ -294,9 +327,9 @@ Outputs:
     Description: Full hostname of the API server.
     Value: !Join [".", ["api-int", !Ref ClusterName, !Ref HostedZoneName]]
 
-  ExternalApiTargetGroupArn:
-    Description: ARN of the external API target group.
-    Value: !Ref ExternalApiTargetGroup
+#  ExternalApiTargetGroupArn:
+#    Description: ARN of the external API target group.
+#    Value: !Ref ExternalApiTargetGroup
 
   InternalApiTargetGroupArn:
     Description: ARN of the internal API target group.
