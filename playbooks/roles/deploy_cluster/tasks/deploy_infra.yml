@@ -2,6 +2,14 @@
 
 - name: Get vpc facts
   include_tasks: vpc_facts.yml
+  when:
+    - not (existing_vpc | bool)
+
+- name: Ensure vpc_id is defined
+  fail:
+    msg: "vpc_id must be defined"
+  when:
+    - vpc_id is not defined
 
 - name: Deploy Network Cloudformation stack
   delegate_to: localhost
@@ -10,7 +18,7 @@
     aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
     security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
     region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
-    #ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
+    ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
     validate_certs: "{{ aws_ssl_enabled }}"
     stack_name: "{{ infra_stack_name }}"
     state: present
@@ -22,9 +30,11 @@
       InfrastructureName: "{{ infrastructure_id }}"
       HostedZoneId: "{{ hosted_zone_id }}"
       HostedZoneName: "{{ ocp_base_domain }}"
-      PublicSubnets: "{{ ec2_public_subnets }}"
+      PublicSubnets: "{{ ec2_public_subnets | default(ec2_private_subnets) }}"
       PrivateSubnets: "{{ ec2_private_subnets }}"
       VpcId: "{{ vpc_id }}"
+      Publish: "{{ ocp_cluster_publish }}"
+      Route53Enabled: "{{ route53_enabled | string | lower }}"
   register: network_stack_outputs
-  tags:
-    - network
+  when:
+    - cloudformation_based | bool
