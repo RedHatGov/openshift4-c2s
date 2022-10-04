@@ -34,7 +34,23 @@ Parameters:
       The internal subnets.
     Type: List<AWS::EC2::Subnet::Id>
 
-# TODO: Need a conditional for creating the IAM roles
+  CreateIAMRoles:
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: >-
+      Should the cloud formation template create the IAM roles and instance profiles
+    Default: "true"
+    Type: String
+
+  CreateSecurityGroups:
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: >-
+      Should the cloud formation template create security groups
+    Default: "true"
+    Type: String
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -43,6 +59,8 @@ Metadata:
           default: "Cluster Information"
         Parameters:
           - InfrastructureName
+          - CreateIAMRoles
+          - CreateSecurityGroups
       - Label:
           default: "Network Configuration"
         Parameters:
@@ -58,9 +76,18 @@ Metadata:
         default: "VPC CIDR"
       PrivateSubnets:
         default: "Private Subnets"
+      CreateIAMRoles:
+        default: "true"
+      CreateSecurityGroups:
+        default: "true"
+
+Conditions:
+  DoIAMRoles: !Equals ["true", !Ref CreateIAMRoles]
+  DoSecurityGroups: !Equals ["true", !Ref CreateSecurityGroups]
 
 Resources:
   MasterSecurityGroup:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Join ["-", [!Ref InfrastructureName, "master", "sg"]]
@@ -90,6 +117,7 @@ Resources:
           Value: owned
 
   WorkerSecurityGroup:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Join ["-", [!Ref InfrastructureName, "worker", "sg"]]
@@ -111,6 +139,7 @@ Resources:
           Value: owned
 
   MasterIngressEtcd:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -121,6 +150,7 @@ Resources:
       IpProtocol: tcp
 
   MasterIngressVxlan:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -131,6 +161,7 @@ Resources:
       IpProtocol: udp
 
   MasterIngressWorkerVxlan:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -141,6 +172,7 @@ Resources:
       IpProtocol: udp
 
   MasterIngressGeneve:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -151,6 +183,7 @@ Resources:
       IpProtocol: udp
 
   MasterIngressWorkerGeneve:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -161,6 +194,7 @@ Resources:
       IpProtocol: udp
 
   MasterIngressInternal:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -171,6 +205,7 @@ Resources:
       IpProtocol: tcp
 
   MasterIngressWorkerInternal:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -181,6 +216,7 @@ Resources:
       IpProtocol: tcp
 
   MasterIngressInternalUDP:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -191,6 +227,7 @@ Resources:
       IpProtocol: udp
 
   MasterIngressWorkerInternalUDP:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -201,6 +238,7 @@ Resources:
       IpProtocol: udp
 
   MasterIngressKube:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -211,6 +249,7 @@ Resources:
       IpProtocol: tcp
 
   MasterIngressWorkerKube:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -221,6 +260,7 @@ Resources:
       IpProtocol: tcp
 
   MasterIngressIngressServices:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -231,6 +271,7 @@ Resources:
       IpProtocol: tcp
 
   MasterIngressWorkerIngressServices:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -241,6 +282,7 @@ Resources:
       IpProtocol: tcp
 
   MasterIngressIngressServicesUDP:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -251,6 +293,7 @@ Resources:
       IpProtocol: udp
 
   MasterIngressWorkerIngressServicesUDP:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt MasterSecurityGroup.GroupId
@@ -261,6 +304,7 @@ Resources:
       IpProtocol: udp
 
   WorkerIngressVxlan:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -271,6 +315,7 @@ Resources:
       IpProtocol: udp
 
   WorkerIngressMasterVxlan:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -281,6 +326,7 @@ Resources:
       IpProtocol: udp
 
   WorkerIngressGeneve:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -291,6 +337,7 @@ Resources:
       IpProtocol: udp
 
   WorkerIngressMasterGeneve:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -301,6 +348,7 @@ Resources:
       IpProtocol: udp
 
   WorkerIngressInternal:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -311,6 +359,7 @@ Resources:
       IpProtocol: tcp
 
   WorkerIngressMasterInternal:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -321,6 +370,7 @@ Resources:
       IpProtocol: tcp
 
   WorkerIngressInternalUDP:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -331,6 +381,7 @@ Resources:
       IpProtocol: udp
 
   WorkerIngressMasterInternalUDP:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -341,6 +392,7 @@ Resources:
       IpProtocol: udp
 
   WorkerIngressKube:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -351,6 +403,7 @@ Resources:
       IpProtocol: tcp
 
   WorkerIngressWorkerKube:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -361,6 +414,7 @@ Resources:
       IpProtocol: tcp
 
   WorkerIngressIngressServices:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -371,6 +425,7 @@ Resources:
       IpProtocol: tcp
 
   WorkerIngressMasterIngressServices:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -381,6 +436,7 @@ Resources:
       IpProtocol: tcp
 
   WorkerIngressIngressServicesUDP:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -391,6 +447,7 @@ Resources:
       IpProtocol: udp
 
   WorkerIngressMasterIngressServicesUDP:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !GetAtt WorkerSecurityGroup.GroupId
@@ -401,6 +458,7 @@ Resources:
       IpProtocol: udp
 
   MasterIamRole:
+    Condition: DoIAMRoles
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Join ["-", [!Ref InfrastructureName, "master", "role"]]
@@ -466,6 +524,7 @@ Resources:
           Value: owned
 
   MasterInstanceProfile:
+    Condition: DoIAMRoles
     Type: "AWS::IAM::InstanceProfile"
     Properties:
       InstanceProfileName: !Join ["-", [!Ref InfrastructureName, "master", "profile"]]
@@ -473,6 +532,7 @@ Resources:
         - Ref: "MasterIamRole"
 
   WorkerIamRole:
+    Condition: DoIAMRoles
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Join ["-", [!Ref InfrastructureName, "worker", "role"]]
@@ -502,6 +562,7 @@ Resources:
           Value: owned
 
   WorkerInstanceProfile:
+    Condition: DoIAMRoles
     Type: "AWS::IAM::InstanceProfile"
     Properties:
       InstanceProfileName: !Join ["-", [!Ref InfrastructureName, "worker", "profile"]]
@@ -510,17 +571,21 @@ Resources:
 
 Outputs:
   MasterSecurityGroupId:
+    Condition: DoSecurityGroups
     Description: Master Security Group ID
     Value: !GetAtt MasterSecurityGroup.GroupId
 
   WorkerSecurityGroupId:
+    Condition: DoSecurityGroups
     Description: Worker Security Group ID
     Value: !GetAtt WorkerSecurityGroup.GroupId
 
   MasterInstanceProfile:
+    Condition: DoIAMRoles
     Description: Master IAM Instance Profile
     Value: !Ref MasterInstanceProfile
 
   WorkerInstanceProfile:
+    Condition: DoIAMRoles
     Description: Worker IAM Instance Profile
     Value: !Ref WorkerInstanceProfile
