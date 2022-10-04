@@ -54,20 +54,6 @@ Parameters:
       Ignition version
     Type: String
 
-#  AutoRegisterELB:
-#    AllowedValues:
-#      - "yes"
-#      - "no"
-#    Description: >-
-#      Do you want to invoke NLB registration, which requires a Lambda ARN parameter?
-#    Default: "yes"
-#    Type: String
-
-#  RegisterNlbIpTargetsLambdaArn:
-#    Description: >-
-#      ARN for NLB IP target registration lambda.
-#    Type: String
-
 #  ExternalApiTargetGroupArn:
 #    Description: >-
 #      ARN for external API load balancer target group.
@@ -106,8 +92,6 @@ Metadata:
 #      - Label:
 #          default: "Load Balancer Automation"
 #        Parameters:
-#          - AutoRegisterELB
-#          - RegisterNlbIpTargetsLambdaArn
 #          - ExternalApiTargetGroupArn
 #          - InternalApiTargetGroupArn
 #          - InternalServiceTargetGroupArn
@@ -132,9 +116,6 @@ Metadata:
 #        default: "Use Provided ELB Automation"
 
 # TODO: Need a conditional on the creation of the Bootstrap IAM role
-
-#Conditions:
-#  DoRegistration: !Equals ["yes", !Ref AutoRegisterELB]
 
 Resources:
   BootstrapIamRole:
@@ -223,30 +204,6 @@ Resources:
           Value: !Join ["-", [!Ref InfrastructureName, "bootstrap"]]
         - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
           Value: "owned"
-
-#  RegisterBootstrapApiTarget:
-#    Condition: DoRegistration
-#    Type: Custom::NLBRegister
-#    Properties:
-#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-#      TargetArn: !Ref ExternalApiTargetGroupArn
-#      TargetIp: !GetAtt BootstrapInstance.PrivateIp
-
-#  RegisterBootstrapInternalApiTarget:
-#    Condition: DoRegistration
-#    Type: Custom::NLBRegister
-#    Properties:
-#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-#      TargetArn: !Ref InternalApiTargetGroupArn
-#      TargetIp: !GetAtt BootstrapInstance.PrivateIp
-
-#  RegisterBootstrapInternalServiceTarget:
-#    Condition: DoRegistration
-#    Type: Custom::NLBRegister
-#    Properties:
-#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-#      TargetArn: !Ref InternalServiceTargetGroupArn
-#      TargetIp: !GetAtt BootstrapInstance.PrivateIp
 
 Outputs:
   BootstrapInstanceId:

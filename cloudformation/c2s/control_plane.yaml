@@ -20,15 +20,6 @@ Parameters:
       Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap.
     Type: AWS::EC2::Image::Id
 
-#  AutoRegisterELB:
-#    AllowedValues:
-#      - "yes"
-#      - "no"
-#    Description: >-
-#      Do you want to invoke NLB registration, which requires a Lambda ARN parameter?
-#    Default: "yes"
-#    Type: String
-
   Master0Subnet:
     Description: >-
       The subnet to launch the first master node into.
@@ -106,11 +97,6 @@ Parameters:
     Default: m5.xlarge
     Type: String
 
-#  RegisterNlbIpTargetsLambdaArn:
-#    Description: >-
-#      ARN for NLB IP target registration lambda.
-#    Type: String
-
 #  ExternalApiTargetGroupArn:
 #    Description: >-
 #      ARN for external API load balancer target group.
@@ -154,8 +140,6 @@ Metadata:
 #      - Label:
 #          default: "Load Balancer Automation"
 #        Parameters:
-#          - AutoRegisterELB
-#          - RegisterNlbIpTargetsLambdaArn
 #          - ExternalApiTargetGroupArn
 #          - InternalApiTargetGroupArn
 #          - InternalServiceTargetGroupArn
@@ -222,30 +206,6 @@ Resources:
         - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
           Value: "owned"
 
-#  RegisterMaster0:
-#    Condition: DoRegistration
-#    Type: Custom::NLBRegister
-#    Properties:
-#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-#      TargetArn: !Ref ExternalApiTargetGroupArn
-#      TargetIp: !GetAtt Master0.PrivateIp
-
-#  RegisterMaster0InternalApiTarget:
-#    Condition: DoRegistration
-#    Type: Custom::NLBRegister
-#    Properties:
-#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-#      TargetArn: !Ref InternalApiTargetGroupArn
-#      TargetIp: !GetAtt Master0.PrivateIp
-
-#  RegisterMaster0InternalServiceTarget:
-#    Condition: DoRegistration
-#    Type: Custom::NLBRegister
-#    Properties:
-#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-#      TargetArn: !Ref InternalServiceTargetGroupArn
-#      TargetIp: !GetAtt Master0.PrivateIp
-
   Master1:
     Type: AWS::EC2::Instance
     Properties:
@@ -277,30 +237,6 @@ Resources:
         - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
           Value: "owned"
 
-#  RegisterMaster1:
-#    Condition: DoRegistration
-#    Type: Custom::NLBRegister
-#    Properties:
-#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-#      TargetArn: !Ref ExternalApiTargetGroupArn
-#      TargetIp: !GetAtt Master1.PrivateIp
-
-#  RegisterMaster1InternalApiTarget:
-#    Condition: DoRegistration
-#    Type: Custom::NLBRegister
-#    Properties:
-#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-#      TargetArn: !Ref InternalApiTargetGroupArn
-#      TargetIp: !GetAtt Master1.PrivateIp
-
-#  RegisterMaster1InternalServiceTarget:
-#    Condition: DoRegistration
-#    Type: Custom::NLBRegister
-#    Properties:
-#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-#      TargetArn: !Ref InternalServiceTargetGroupArn
-#      TargetIp: !GetAtt Master1.PrivateIp
-
   Master2:
     Type: AWS::EC2::Instance
     Properties:
@@ -331,30 +267,6 @@ Resources:
           Value: !Join ["-", [!Ref InfrastructureName, "master", "2"]]
         - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
           Value: "owned"
-
-#  RegisterMaster2:
-#    Condition: DoRegistration
-#    Type: Custom::NLBRegister
-#    Properties:
-#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-#      TargetArn: !Ref ExternalApiTargetGroupArn
-#      TargetIp: !GetAtt Master2.PrivateIp
-
-#  RegisterMaster2InternalApiTarget:
-#    Condition: DoRegistration
-#    Type: Custom::NLBRegister
-#    Properties:
-#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-#      TargetArn: !Ref InternalApiTargetGroupArn
-#      TargetIp: !GetAtt Master2.PrivateIp
-
-#  RegisterMaster2InternalServiceTarget:
-#    Condition: DoRegistration
-#    Type: Custom::NLBRegister
-#    Properties:
-#      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
-#      TargetArn: !Ref InternalServiceTargetGroupArn
-#      TargetIp: !GetAtt Master2.PrivateIp
 
 Outputs:
 
