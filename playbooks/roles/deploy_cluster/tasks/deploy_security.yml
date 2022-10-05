@@ -36,6 +36,8 @@
       VpcCidr: "{{ vpc_cidr }}"
       VpcId: "{{ vpc_id }}"
       PrivateSubnets: "{{ ec2_private_subnets }}"
+      CreateIAMRoles: "false"
+      CreateSecurityGroups: "true"
   register: sec_stack_outputs
   when:
     - cloudformation_based | bool

@@ -1,35 +1,37 @@
 ---
 # tasks file for generate_ignition
 
-- name: Check if AMI ID set for ISO regions
-  fail:
-    msg: "AMI ID required for ISO regions"
-  when:
-    - ansible_env.AWS_DEFAULT_REGION is search("iso")
-
-# Will only run in non-iso regions. Above task will stop for ISO regions
+# Not in Combine
 - name: Get AMI ID if not set
   shell: |
     {{ openshift_install }} coreos print-stream-json | jq -r '.architectures.x86_64.images.aws[]."{{ ansible_env.AWS_DEFAULT_REGION }}".image'
   register: rhcos_image_info
   when:
-    - rhcos_ami is not defined
+    - ( rhcos_ami is not defined ) and (not combine | bool)
+
+# In Combine
+- name: Get AMI ID if not set
+  shell: |
+    {{ openshift_install }} coreos print-stream-json | jq -r '.architectures.x86_64.images.aws[]."us-east-1".image'
+  register: rhcos_image_info
+  when:
+    - ( rhcos_ami is not defined ) and (combine | bool)
 
 - name: Set RHCOS AMI ID
   set_fact:
     rhcos_ami: "{{ rhcos_image_info.stdout }}"
 
 # Task will fail if the AMI is not present, cannot be found, or var has bad input
-- name: gather information about an AMI using ami-id
-  amazon.aws.ec2_ami_info:
-    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
-    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
-    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
-    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
-    ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
-    validate_certs: "{{ aws_ssl_enabled }}"
-    image_ids: "{{ rhcos_ami }}"
-  register: aws_ami_info
+#- name: gather information about an AMI using ami-id
+#  amazon.aws.ec2_ami_info:
+#    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+#    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+#    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+#    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+#    ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
+#    validate_certs: "{{ aws_ssl_enabled }}"
+#    image_ids: "{{ rhcos_ami }}"
+#  register: aws_ami_info
 
 - name: Remove existing ignition configs
   file:
@@ -111,6 +113,7 @@
     tasks_from: vpc_facts.yml
   when:
     - (cloudformation_based | bool)
+    - not (existing_vpc | bool)
 
 - name: Pull in infra cloudformation facts
   import_role:
@@ -198,7 +201,7 @@
     state: absent
   when:
     - (platform is match("aws"))
-    - (ansible_env.AWS_DEFAULT_REGION is match("us-iso-east-1"))
+    - ("us-iso" in ansible_env.AWS_DEFAULT_REGION)
 
 - name: Copy new cloud provider config
   template:
@@ -207,7 +210,7 @@
     mode: 0644
   when:
     - (platform is match("aws"))
-    - (ansible_env.AWS_DEFAULT_REGION is match("us-iso-east-1"))
+    - ("us-iso" in ansible_env.AWS_DEFAULT_REGION)
 
 - name: Set access key fact
   set_fact:
@@ -234,7 +237,7 @@
     state: absent
   when:
     - (platform is match("aws"))
-    - (ansible_env.AWS_DEFAULT_REGION is match("us-iso-east-1"))
+    - ("us-iso" in ansible_env.AWS_DEFAULT_REGION)
   with_items:
     - '99_cloud-creds-secret.yaml'
     - '99_aws-ebs-csi-driver-operator-secret.yaml'
@@ -250,7 +253,7 @@
     mode: 0644
   when:
     - (platform is match("aws"))
-    - (ansible_env.AWS_DEFAULT_REGION is match("us-iso-east-1"))
+    - ("us-iso" in ansible_env.AWS_DEFAULT_REGION)
   with_items:
     - '99_cloud-creds-secret.yaml'
     - '99_aws-ebs-csi-driver-operator-secret.yaml'
@@ -444,7 +447,7 @@
     path: "{{ ignition_configs }}/manifests/cluster-network-03-config.yml"
     state: absent
   when:
-    - (platform is match("aws") and ansible_env.AWS_DEFAULT_REGION is match("us-iso-east-1"))
+    - (platform is match("aws") and "us-iso" in ansible_env.AWS_DEFAULT_REGION)
 
 - name: Customize custom cluster network policy
   template:
@@ -452,7 +455,7 @@
     dest: "{{ ignition_configs }}/manifests/cluster-network-03-config.yml"
     mode: 0644
   when:
-    - (platform is match("aws") and ansible_env.AWS_DEFAULT_REGION is match("us-iso-east-1"))
+    - (platform is match("aws") and "us-iso" in ansible_env.AWS_DEFAULT_REGION)
 
 - name: Stop before generating ignition configs
   fail:
