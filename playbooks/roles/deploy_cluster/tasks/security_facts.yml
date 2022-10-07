@@ -13,18 +13,19 @@
     stack_resources: true
   register: sec_stack_outputs
 
-#- debug:
-#    var: sec_stack_outputs
-
 - name: Set IAM Role facts
   set_fact:
-    ec2_iam_role:
-#      bootstrap: ""
-      master: "{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.MasterIamRole }}"
-      worker: "{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.WorkerIamRole }}"
     ec2_instance_profile:
       master: "{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.MasterInstanceProfile }}"
       worker: "{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.WorkerInstanceProfile }}"
+  when:
+    - sec_stack_outputs.cloudformation.openshift4sec.stack_resources.MasterInstanceProfile is defined
+
+- name: Check that IAM instance profiles are defined
+  fail:
+    msg: Master and Worker IAM instance profiles must be set
+  when:
+    - ec2_instance_profile.master is not defined or ec2_instance_profile.worker is not defined
 
 - name: Get master security group info
   delegate_to: localhost
@@ -38,6 +39,8 @@
     filters:
       group-id: '{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.MasterSecurityGroup }}'
   register: master_sg_info
+  when:
+    - sec_stack_outputs.cloudformation.openshift4sec.stack_resources.MasterSecurityGroup is defined
 
 - name: Get worker security group info
   delegate_to: localhost
@@ -51,6 +54,8 @@
     filters:
       group-id: '{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.WorkerSecurityGroup }}'
   register: worker_sg_info
+  when:
+    - sec_stack_outputs.cloudformation.openshift4sec.stack_resources.WorkerSecurityGroup is defined
 
 - name: Set security group facts
   set_fact:
@@ -61,3 +66,9 @@
       worker:
         id: '{{ sec_stack_outputs.cloudformation.openshift4sec.stack_resources.WorkerSecurityGroup }}'
         name: "{{ worker_sg_info.security_groups[0].group_name}}"
+
+- name: Check that security group vars are defined
+  fail:
+    msg: Master and Worker Security Groups must be defined
+  when:
+    ec2_sg.master.id is not defined or ec2_sg.worker.id is not defined

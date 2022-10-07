@@ -21,7 +21,7 @@
       Subnet: "{{ subnets[item].id }}"
       IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
       WorkerSecurityGroupId: "{{ ec2_sg.worker.id }}"
-      WorkerInstanceProfileName: "{{ ec2_iam_role.master }}"
+      WorkerInstanceProfileName: "{{ ec2_instance_profile.master }}"
       IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
   with_sequence: start=0 end="{{ end_at }}"
   vars:

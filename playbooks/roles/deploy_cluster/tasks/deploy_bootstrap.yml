@@ -28,7 +28,7 @@
     aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
     security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
     region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
-    #ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
+    ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
     validate_certs: "{{ aws_ssl_enabled }}"
     stack_name: "{{ bootstrap_stack_name }}"
     state: present
@@ -47,7 +47,7 @@
       BootstrapIgnitionLocation: "https://{{ s3_bucket }}.s3.amazonaws.com/{{ s3_path }}/bootstrap.ign"
       #InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
       #InternalServiceTragetGroupArn: "{{ internal_service_target_group_arn }}"
-      #BootstrapInstanceProfileName: "{{ ec2_iam_role.master }}"
+      #BootstrapInstanceProfileName: "{{ ec2_instance_profile.master }}"
       #IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
       IgnitionVersion: '3.2.0'
   register: bootstrap_stack_outputs

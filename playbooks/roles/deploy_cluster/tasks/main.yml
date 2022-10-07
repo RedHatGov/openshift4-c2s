@@ -58,7 +58,7 @@
       BootstrapIgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
       InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
       InternalServiceTragetGroupArn: "{{ internap_service_target_group_arn }}"
-      BootstrapInstanceProfileName: "{{ ec2_iam_role.bootstrap }}"
+      BootstrapInstanceProfileName: "{{ ec2_instance_profile.bootstrap }}"
       IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
   register: bootstrap_stack_outputs
   tags:
@@ -110,7 +110,7 @@
       IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
       InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
       InternalServiceTargetGropArn: "{{ internap_service_target_group_arn }}"
-      MasterInstanceProfileName: "{{ ec2_iam_role.master }}"
+      MasterInstanceProfileName: "{{ ec2_instance_profile.master }}"
       IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
   register: master_stack_outputs
   tags:
@@ -167,7 +167,7 @@
       Subnet: "{{ subnets[0].id }}"
       IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
       WorkerSecurityGroupId: "{{ ec2_sg.worker.id }}"
-      WorkerInstanceProfileName: "{{ ec2_iam_role.master }}"
+      WorkerInstanceProfileName: "{{ ec2_instance_profile.master }}"
       IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
   register: worker0_stack_outputs
   tags:
@@ -191,7 +191,7 @@
       Subnet: "{{ subnets[1].id }}"
       IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
       WorkerSecurityGroupId: "{{ ec2_sg.worker.id }}"
-      WorkerInstanceProfileName: "{{ ec2_iam_role.master }}"
+      WorkerInstanceProfileName: "{{ ec2_instance_profile.master }}"
       IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
   register: worker1_stack_outputs
   tags:
@@ -215,7 +215,7 @@
       Subnet: "{{ subnets[2].id }}"
       IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
       WorkerSecurityGroupId: "{{ ec2_sg.worker.id }}"
-      WorkerInstanceProfileName: "{{ ec2_iam_role.master }}"
+      WorkerInstanceProfileName: "{{ ec2_instance_profile.master }}"
       IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
   register: worker2_stack_outputs
   tags:
