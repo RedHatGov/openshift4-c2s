@@ -3,7 +3,7 @@
 - name: Get vpc facts
   include_tasks: vpc_facts.yml
   when:
-    - (cloudformation_based | bool)
+    - (cloudformation_based | bool) and ( not existing_vpc | bool)
 
 - name: Get infra facts
   include_tasks: infra_facts.yml
@@ -20,6 +20,23 @@
 
 - debug:
     var: internal_service_target_group_arn
+
+- name: Get RHCOS AMI ID
+  import_role:
+    name: generate_ignition
+    tasks_from: get_ami_id.yml
+
+- name: Set bootstrap subnet (External)
+  set_fact:
+    bootstrap_subnet: "{{ ec2_public_subnets[0] }}"
+  when:
+    - ocp_cluster_publish is match("External")
+
+- name: Set bootstrap subnet (External)
+  set_fact:
+    bootstrap_subnet: "{{ ec2_private_subnets[0] }}"
+  when:
+    - ocp_cluster_publish is match("Internal")
 
 - name: Deploy bootstrap Cloudformation stack
   delegate_to: localhost
@@ -38,43 +55,33 @@
     template_parameters:
       #ClusterName: "{{ ocp_cluster_name }}"
       InfrastructureName: "{{ infrastructure_id }}"
-      #RhcosAmi: "{{ rhcos_ami[rhcos_ver] }}"
-      RhcosAmi: "ami-02c8d3069da232774"
+      RhcosAmi: "{{ rhcos_ami }}"
       AllowedBootstrapSshCidr: '0.0.0.0/0'
-      PublicSubnet: "{{ public_subnets[0].id }}"
+      PublicSubnet: "{{ bootstrap_subnet }}"
       MasterSecurityGroupId: "{{ ec2_sg.master.id }}"
       VpcId: "{{ vpc_id }}"
-      BootstrapIgnitionLocation: "https://{{ s3_bucket }}.s3.amazonaws.com/{{ s3_path }}/bootstrap.ign"
-      #InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
-      #InternalServiceTragetGroupArn: "{{ internal_service_target_group_arn }}"
-      #BootstrapInstanceProfileName: "{{ ec2_instance_profile.master }}"
-      #IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
+      BootstrapIgnitionLocation: "http://{{ s3_bucket }}.s3.us-iso-east-1.c2s.ic.gov/{{ s3_path }}/bootstrap.ign"
+      BootstrapInstanceProfileName: "{{ ec2_instance_profile.bootstrap }}"
       IgnitionVersion: '3.2.0'
+      CreateIAMRoles: "false"
+      CreateSecurityGroups: "true"
   register: bootstrap_stack_outputs
-  tags:
-    - bootstrap
 
-#- name: Show bootstrap stack output
-#  debug:
-#    var: bootstrap_stack_outputs
-#  tags:
-#    - bootstrap
+- name: Show bootstrap stack output
+  debug:
+    var: bootstrap_stack_outputs
 
 # Ansible task for this doesn't work correctly in C2S do to some api version error
 # This has not been combined with the loop below for the control plane to allow independent deployment of the boostrap node
 - name: Add bootstrap node to the api internal target group
   delegate_to: localhost
   shell: aws --no-verify-ssl elbv2 register-targets --target-group-arn "{{ internal_api_target_group_arn }}" --targets '{"Id":"{{ bootstrap_stack_outputs.stack_outputs.BootstrapPrivateIp }}"}'
-  tags:
-    - bootstrap
 
 # Ansible task for this doesn't work correctly in C2S do to some api version error
 # This has not been combined with the loop below for the control plane to allow independent deployment of the boostrap node
 - name: Add bootstrap node to the service api taget group
   delegate_to: localhost
   shell: aws --no-verify-ssl elbv2 register-targets --target-group-arn "{{ internal_service_target_group_arn }}" --targets '{"Id":"{{ bootstrap_stack_outputs.stack_outputs.BootstrapPrivateIp }}"}'
-  tags:
-    - bootstrap
 
 # Ansible task for this doesn't work correctly in C2S do to some api version error
 # This has not been combined with the loop below for the control plane to allow independent deployment of the boostrap node
@@ -83,5 +90,3 @@
   shell: aws --no-verify-ssl elbv2 register-targets --target-group-arn "{{ external_api_target_group_arn }}" --targets '{"Id":"{{ bootstrap_stack_outputs.stack_outputs.BootstrapPrivateIp }}"}'
   when:
     (ocp_cluster_publish is match("External"))
-  tags:
-    - bootstrap

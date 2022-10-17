@@ -49,25 +49,31 @@ Parameters:
       Ignition config file location. (Ex: s3://my-s3-bucket/bootstrap.ign)
     Type: String
 
+  BootstrapInstanceProfileName:
+    Type: String
+
+  CreateIAMRoles:
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: >-
+      Should the cloud formation template create the IAM roles and instance profiles
+    Default: "true"
+    Type: String
+
+  CreateSecurityGroups:
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: >-
+      Should the cloud formation template create security groups
+    Default: "true"
+    Type: String
+
   IgnitionVersion:
     Description: >-
       Ignition version
     Type: String
-
-#  ExternalApiTargetGroupArn:
-#    Description: >-
-#      ARN for external API load balancer target group.
-#    Type: String
-
-#  InternalApiTargetGroupArn:
-#    Description: >-
-#      ARN for internal API load balancer target group.
-#    Type: String
-
-#  InternalServiceTargetGroupArn:
-#    Description: >-
-#      ARN for internal service load balancer target group.
-#    Type: String
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -76,6 +82,8 @@ Metadata:
           default: "Cluster Information"
         Parameters:
           - InfrastructureName
+          - CreateIAMRoles
+          - CreateSecurityGroups
       - Label:
           default: "Host Information"
         Parameters:
@@ -89,12 +97,6 @@ Metadata:
           - VpcId
           - AllowedBootstrapSshCidr
           - PublicSubnet
-#      - Label:
-#          default: "Load Balancer Automation"
-#        Parameters:
-#          - ExternalApiTargetGroupArn
-#          - InternalApiTargetGroupArn
-#          - InternalServiceTargetGroupArn
     ParameterLabels:
       InfrastructureName:
         default: "Infrastructure Name"
@@ -112,13 +114,18 @@ Metadata:
         default: "Master Security Group ID"
       IgnitionVersion:
         default: "Ignition Version"
-#      AutoRegisterELB:
-#        default: "Use Provided ELB Automation"
+      CreateIAMRoles:
+        default: "true"
+      CreateSecurityGroups:
+        default: "true"
 
-# TODO: Need a conditional on the creation of the Bootstrap IAM role
+Conditions:
+  DoIAMRoles: !Equals ["true", !Ref CreateIAMRoles]
+  DoSecurityGroups: !Equals ["true", !Ref CreateSecurityGroups]
 
 Resources:
   BootstrapIamRole:
+    Condition: DoIAMRoles
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Join ["-", [!Ref InfrastructureName, "bootstrap", "role"]]
@@ -156,6 +163,7 @@ Resources:
           Value: owned
 
   BootstrapInstanceProfile:
+    Condition: DoIAMRoles
     Type: "AWS::IAM::InstanceProfile"
     Properties:
       InstanceProfileName: !Join ["-", [!Ref InfrastructureName, "bootstrap", "profile"]]
@@ -163,6 +171,7 @@ Resources:
       - Ref: "BootstrapIamRole"
 
   BootstrapSecurityGroup:
+    Condition: DoSecurityGroups
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Join ["-", [!Ref InfrastructureName, "bootstrap", "sg"]]
@@ -182,7 +191,8 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: !Ref RhcosAmi
-      IamInstanceProfile: !Ref BootstrapInstanceProfile
+      #IamInstanceProfile: !Ref BootstrapInstanceProfile
+      IamInstanceProfile: !Ref BootstrapInstanceProfileName
       InstanceType: "i3.large"
       NetworkInterfaces:
         - AssociatePublicIpAddress: "true"

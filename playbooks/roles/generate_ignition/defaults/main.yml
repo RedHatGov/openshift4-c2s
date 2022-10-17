@@ -122,12 +122,6 @@ disk: 'xvda'
 #
 ##########################################################################################
 
-#rhcos_ami:
-#  '4.6.8':  'ami-01d4ce8cb7734d27b'
-#  '4.7.0':  'ami-0ccf438713c096327'
-#  '4.7.7':  'ami-0ccf438713c096327'
-#  '4.7.13': 'ami-0ccf438713c096327'
-
 #ec2_endpoint: 'https://ec2.us-iso-east-1.c2s.ic.gov'
 #s3_endpoint: 'https://s3.us-iso-east-1.c2s.ic.gov'
 #route53_endpoint: 'https://route53.us-iso-east-1.c2s.ic.gov'

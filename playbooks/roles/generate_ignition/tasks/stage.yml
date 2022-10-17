@@ -47,7 +47,7 @@
     aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
     security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
     region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
-    #s3_url: "{{ s3_endpoint | default(omit) }}"
+    s3_url: "{{ s3_endpoint | default(omit) }}"
     validate_certs: "{{ aws_ssl_enabled }}"
     bucket: "{{ s3_bucket }}"
     object: "{{ s3_path }}/{{ item }}"
