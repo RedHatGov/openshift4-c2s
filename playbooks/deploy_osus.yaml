@@ -1,0 +1,10 @@
+---
+
+- hosts: localhost
+  gather_facts: true
+  become: false
+  tasks:
+
+    - name: Deploy OpenShift4 Update Service (OSUS)
+      import_role:
+        name: openshift_update_service
