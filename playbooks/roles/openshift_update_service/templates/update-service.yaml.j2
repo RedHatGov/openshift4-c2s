@@ -1,0 +1,10 @@
+---
+apiVersion: updateservice.operator.openshift.io/v1
+kind: UpdateService
+metadata:
+  name: sample
+  namespace: openshift-update-service
+spec:
+  replicas: 1
+  graphDataImage: "{{ mirror_registry }}:{{ mirror_registry_port }}/openshift/graph-image:latest"
+  releases: "{{ mirror_registry }}:{{ mirror_registry_port }}/openshift4/ocp4"

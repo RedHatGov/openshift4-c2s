@@ -1,0 +1,4 @@
+---
+
+# Default location of this CR within the Quay registry AMI
+update_service_cr_location: "/home/ec2-user/oc-mirror-workspace/results/updateService.yaml"

@@ -1,0 +1,37 @@
+---
+
+- name: Create OSUS Namespace
+  delegate_to: localhost
+  community.kubernetes.k8s:
+    state: present
+    wait: true
+    kubeconfig: "{{ kubeconfig }}"
+    validate_certs: '{{ kube_ssl_enabled }}'
+    definition: "{{ lookup('template', 'templates/namespace.yml.j2') }}"
+
+- name: Create OSUS Operator Group
+  delegate_to: localhost
+  community.kubernetes.k8s:
+    state: present
+    wait: true
+    kubeconfig: "{{ kubeconfig }}"
+    validate_certs: '{{ kube_ssl_enabled }}'
+    definition: "{{ lookup('template', 'templates/update-service-operator-group.yaml.j2') }}"
+
+- name: Create OSUS Operator Subscription
+  delegate_to: localhost
+  community.kubernetes.k8s:
+    state: present
+    wait: true
+    kubeconfig: "{{ kubeconfig }}"
+    validate_certs: '{{ kube_ssl_enabled }}'
+    definition: "{{ lookup('template', 'templates/update-service-subscription.yaml.j2') }}"
+
+- name: Deploy the OSUS CR
+  delegate_to: localhost
+  community.kubernetes.k8s:
+    state: present
+    wait: true
+    kubeconfig: "{{ kubeconfig }}"
+    validate_certs: '{{ kube_ssl_enabled }}'
+    definition: "{{ update_service_cr_location }}"
