@@ -2,3 +2,6 @@ wheel
 ansible==2.9.*
 jinja2
 awscli
+boto3
+botocore
+jmespath
