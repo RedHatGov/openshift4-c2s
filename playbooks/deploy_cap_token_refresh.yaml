@@ -1,0 +1,10 @@
+---
+
+- hosts: localhost
+  gather_facts: true
+  become: false
+  tasks:
+
+    - name: Deploy OpenShift4 CAP Token Refresh KubeCron Job
+      import_role:
+        name: cap_token_refresh

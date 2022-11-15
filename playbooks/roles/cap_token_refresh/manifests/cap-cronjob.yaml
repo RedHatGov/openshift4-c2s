@@ -1,0 +1,67 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: cap-token-refresh
+  namespace: cap-token-refresh
+spec:
+  schedule: "*/30 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: cap-token-refresh
+            image: quay.io/staebler/cap-token-refresh
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: CAP_URL
+              value: "https://cap.digitalageexperts.com/api/v1/credentials"
+            - name: AGENCY
+              value: "SHIFT"
+            - name: MISSION
+              value: "OpenShiftGovCloudEmu"
+            args:
+            - /bin/sh
+            - -c
+            - |
+              readarray -t secrets <<< \
+                "$(oc get credentialsrequest -A -ojson | \
+                  jq -r '.items[] | select(.spec.providerSpec.kind == "AWSProviderSpec") | .spec.secretRef | .namespace, .name')"
+              secret_namespace=""
+              secret_name=""
+              for i in "${secrets[@]}"
+              do
+                if [ -z "${secret_namespace}" ]
+                then
+                  secret_namespace="${i}"
+                else
+                  secret_name="${i}"
+                  role="$(oc extract -n ${secret_namespace} secret/${secret_name} --keys=role --to=-)"
+                  if [ $? -ne 0 ]
+                  then
+                    echo "Missing ${secret_namespace}/${secret_name} secret"
+                  elif [ -z "${role}" ]
+                  then
+                    echo "Missing role in ${secret_namespace}/${secret_name} secret"
+                  else
+                    echo "Updating creds in ${secret_namespace}/${secret_name} secret"
+                    curl "${CAP_URL}?agency=${AGENCY}&mission=${MISSION}&role=${role}" \
+                        --cert /etc/cap-certs/cap.pem \
+                        --key /etc/cap-certs/cap.key \
+                        --cacert /etc/cap-certs/ca-chain.cert.pem | \
+                      jq '.Credentials | {"stringData":{"aws_access_key_id":.AccessKeyId,"aws_secret_access_key":.SecretAccessKey,"credentials":("[default]\naws_access_key_id = "+.AccessKeyId+"\naws_secret_access_key = "+.SecretAccessKey+"\n")}}' | \
+                      xargs -0 -I {} oc patch -n ${secret_namespace} secret ${secret_name} -p '{}'
+                  fi
+                  secret_namespace=""
+                  secret_name=""
+                fi
+              done
+            volumeMounts:
+            - name: cap-certs
+              mountPath: "/etc/cap-certs"
+          restartPolicy: OnFailure
+          serviceAccountName: cap-token-refresh
+          volumes:
+          - name: cap-certs
+            secret:
+              secretName: cap-certs
