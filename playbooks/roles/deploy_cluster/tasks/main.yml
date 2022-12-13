@@ -167,7 +167,7 @@
       Subnet: "{{ subnets[0].id }}"
       IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
       WorkerSecurityGroupId: "{{ ec2_sg.worker.id }}"
-      WorkerInstanceProfileName: "{{ ec2_instance_profile.master }}"
+      WorkerInstanceProfileName: "{{ ec2_instance_profile.worker }}"
       IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
   register: worker0_stack_outputs
   tags:
@@ -191,7 +191,7 @@
       Subnet: "{{ subnets[1].id }}"
       IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
       WorkerSecurityGroupId: "{{ ec2_sg.worker.id }}"
-      WorkerInstanceProfileName: "{{ ec2_instance_profile.master }}"
+      WorkerInstanceProfileName: "{{ ec2_instance_profile.worker }}"
       IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
   register: worker1_stack_outputs
   tags:
@@ -215,7 +215,7 @@
       Subnet: "{{ subnets[2].id }}"
       IgnitionLocation: "http://{{ s3_bucket }}" # Need rest of link here
       WorkerSecurityGroupId: "{{ ec2_sg.worker.id }}"
-      WorkerInstanceProfileName: "{{ ec2_instance_profile.master }}"
+      WorkerInstanceProfileName: "{{ ec2_instance_profile.worker }}"
       IgnitionVersion: "{{ ign_ver[rhcos_ver] }}"
   register: worker2_stack_outputs
   tags:
