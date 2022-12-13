@@ -1,0 +1,35 @@
+---
+
+# Not in Combine
+- name: Get AMI ID if not set
+  shell: |
+    {{ openshift_install }} coreos print-stream-json | jq -r '.architectures.x86_64.images.aws[]."{{ ansible_env.AWS_DEFAULT_REGION }}".image'
+  register: rhcos_image_info
+  when:
+    - ( rhcos_ami is not defined ) and (not combine | bool)
+
+# In Combine
+- name: Get AMI ID if not set
+  shell: |
+    {{ openshift_install }} coreos print-stream-json | jq -r '.architectures.x86_64.images.aws[]."us-east-1".image'
+  register: rhcos_image_info
+  when:
+    - ( rhcos_ami is not defined ) and (combine | bool)
+
+- name: Set RHCOS AMI ID
+  set_fact:
+    rhcos_ami: "{{ rhcos_image_info.stdout }}"
+  when:
+    - rhcos_ami is not defined
+
+# Task will fail if the AMI is not present, cannot be found, or var has bad input
+#- name: gather information about an AMI using ami-id
+#  amazon.aws.ec2_ami_info:
+#    aws_access_key: "{{ ansible_env.AWS_ACCESS_KEY_ID | default(omit) }}"
+#    aws_secret_key: "{{ ansible_env.AWS_SECRET_ACCESS_KEY | default(omit) }}"
+#    security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
+#    region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
+#    ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
+#    validate_certs: "{{ aws_ssl_enabled }}"
+#    image_ids: "{{ rhcos_ami }}"
+#  register: aws_ami_info
