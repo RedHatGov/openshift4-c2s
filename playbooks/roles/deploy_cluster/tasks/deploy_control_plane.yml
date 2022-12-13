@@ -3,7 +3,7 @@
 - name: Get vpc facts
   include_tasks: vpc_facts.yml
   when:
-    - (cloudformation_based | bool)
+    - (cloudformation_based | bool) and ( not existing_vpc | bool)
 
 - name: Get infra facts
   include_tasks: infra_facts.yml
@@ -15,6 +15,11 @@
   when:
     - (cloudformation_based | bool)
 
+- name: Get RHCOS AMI ID
+  import_role:
+    name: generate_ignition
+    tasks_from: get_ami_id.yml
+
 - name: Deploy control plane Cloudformation stack
   delegate_to: localhost
   amazon.aws.cloudformation:
@@ -23,7 +28,7 @@
     security_token: "{{ ansible_env.AWS_SESSION_TOKEN | default(omit) }}"
     region: "{{ ansible_env.AWS_DEFAULT_REGION | default(omit) }}"
     ec2_url: "{{ cloudformation_endpoint | default(omit) }}"
-    validate_certs: "{{ aws_ssl_enabled }}"
+    validate_certs: "{{ aws_ssl_enabled | default(omit) }}"
     stack_name: "{{ cp_stack_name }}"
     state: present
     disable_rollback: true
@@ -32,26 +37,17 @@
     template_parameters:
       #ClusterName: "{{ ocp_cluster_name }}"
       InfrastructureName: "{{ infrastructure_id }}"
-      RhcosAmi: "ami-02c8d3069da232774"
-      Master0Subnet: "{{ private_subnets[0].id }}"
-      Master1Subnet: "{{ private_subnets[1].id }}"
-      Master2Subnet: "{{ private_subnets[2].id }}"
-      IgnitionLocation: "https://{{ s3_bucket }}.s3.amazonaws.com/{{ s3_path }}/master.ign"
-      #InternalApiTargetGroupArn: "{{ internal_api_target_group_arn }}"
-      #InternalServiceTargetGropArn: "{{ internap_service_target_group_arn }}"
+      RhcosAmi: "{{ rhcos_ami }}"
+      Master0Subnet: "{{ ec2_private_subnets[0] }}"
+      Master1Subnet: "{{ ec2_private_subnets[1] }}"
+      Master2Subnet: "{{ ec2_private_subnets[2] }}"
+      IgnitionLocation: "http://{{ s3_bucket }}.s3.us-iso-east-1.c2s.ic.gov/{{ s3_path }}/master.ign"
       MasterInstanceProfileName: "{{ ec2_instance_profile.master }}"
       MasterSecurityGroupId: "{{ ec2_sg.master.id }}"
       IgnitionVersion: "3.2.0"
-      #CertificateAuthorities: ""
   register: master_stack_outputs
   tags:
     - masters
-
-#- name: show master stack output
-#  debug:
-#    var: master_stack_outputs
-#  tags:
-#    - masters
 
 # Ansible task for this doesn't work correctly in C2S do to some api version error
 - name: Add control plane nodes to api internal target group
