@@ -3,3 +3,4 @@ oc
 kubectl
 openshift-install
 *.gz
+build
